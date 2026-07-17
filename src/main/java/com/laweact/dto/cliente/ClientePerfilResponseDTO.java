@@ -1,0 +1,26 @@
+package com.laweact.dto.cliente;
+
+import java.time.LocalDate;
+import java.util.UUID;
+
+import com.laweact.model.enums.PronomesEnum;
+import com.laweact.model.enums.TipoDocumentoEnum;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
+
+@Builder
+public record ClientePerfilResponseDTO(
+        @NotNull UUID usuarioId,
+        @NotBlank String nomeCompleto,
+        @NotBlank String profissao,
+        @NotNull TipoDocumentoEnum tipoDocumento,
+        @NotBlank String numeroDocumento,
+        @NotBlank String rg,
+        @NotNull LocalDate dataNascimento,
+        @NotNull PronomesEnum pronomes,
+        String fotoUrl,
+        String faixaRenda,
+        String estadoCivil
+) {}

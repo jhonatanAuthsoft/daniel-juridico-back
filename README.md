@@ -1,59 +1,65 @@
 # Laweact Server
 
-API Java 21 + Spring Boot 3 com Clean Architecture (seção `auth` de exemplo), Postgres e Swagger.
+API Java 21 + Spring Boot 3 em arquitetura em camadas (padrão ecopragas), Postgres, JWT e Swagger.
+
+## Estrutura
+
+```
+com.laweact/
+├── controller/
+├── service/ + service/imp/
+├── repository/
+├── model/entity/ + model/enums/
+├── dto/
+├── mapper/
+├── config/
+└── util/
+```
 
 ## Pré-requisitos
 
 - Java 21+
-- Maven 3.9+ (ou o wrapper `./mvnw` após gerá-lo)
 - Docker / Docker Compose
 
-## Subir o banco (só Postgres)
+## Subir o banco (Postgres)
 
 ```bash
 docker compose up -d
 ```
 
-Credenciais padrão: `laweact` / `laweact` — database `laweact` em `localhost:5432`.
+Credenciais: `laweact` / `laweact` — database `laweact` em `localhost:5432`.
 
 ## Rodar a API
 
 ```bash
-./mvnw spring-boot:run
-# ou
-mvn spring-boot:run
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-- API: http://localhost:8080  
-- Swagger UI: http://localhost:8080/swagger-ui.html  
-- Health: http://localhost:8080/actuator/health  
+- Swagger UI: http://localhost:8080/swagger-ui.html
+- Health: http://localhost:8080/actuator/health
 
-## Endpoints de auth
+## Exemplos (curl)
 
-| Method | Path | Auth |
-|--------|------|------|
-| POST | `/api/auth/register` | público |
-| POST | `/api/auth/login` | público |
-| GET | `/api/auth/me` | Bearer JWT |
-
-Exemplo:
+Cadastrar:
 
 ```bash
-curl -s -X POST http://localhost:8080/api/auth/register \
+curl -s -X POST http://localhost:8080/usuarios/cadastrar \
   -H 'Content-Type: application/json' \
-  -d '{"email":"demo@laweact.com","password":"secret12"}'
+  -d '{"nomeCompleto":"Demo User","email":"demo@laweact.com","senha":"secret12","perfil":"CLIENTE"}'
 ```
 
-## Estrutura
+Login:
 
-```
-com.laweact
-├── shared/     # security, config, exceptions
-└── auth/       # feature de exemplo
-    ├── domain/
-    ├── application/
-    ├── infrastructure/
-    └── presentation/
+```bash
+curl -s -X POST http://localhost:8080/usuarios/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"demo@laweact.com","senha":"secret12"}'
 ```
 
-Troque `laweact.security.jwt.secret` em `application.yml` antes de qualquer ambiente compartilhado.
+Me (substitua `TOKEN`):
+
+```bash
+curl -s http://localhost:8080/usuarios/me -H "Authorization: Bearer TOKEN"
+```
+
+Altere `jwt.secret` em `application-local.properties` antes de ambientes compartilhados.

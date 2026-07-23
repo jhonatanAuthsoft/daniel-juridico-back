@@ -3,12 +3,15 @@ package com.laweact.service.imp;
 import com.laweact.config.JwtUtil;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.usuario.CadastrarUsuarioInputDTO;
+import com.laweact.dto.usuario.EditarUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
+import com.laweact.dto.usuario.RedefinirSenhaInputDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
 import com.laweact.mapper.UsuarioMapper;
 import com.laweact.model.entity.TokenRevogadoEntity;
 import com.laweact.model.entity.UsuarioEntity;
+import com.laweact.model.enums.PerfilUsuarioEnum;
 import com.laweact.model.enums.StatusUsuarioEnum;
 import com.laweact.repository.TokenRevogadoRepository;
 import com.laweact.repository.UsuarioRepository;
@@ -27,7 +30,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Log4j2
@@ -109,4 +114,122 @@ public class UsuarioServiceImp implements UsuarioService {
 
         return usuarioMapper.toResponseDTO(usuario);
     }
+
+    @Override
+    @Transactional
+    public void redefinirSenha(RedefinirSenhaInputDTO redefinirSenhaInputDTO) {
+        UsuarioEntity usuario = usuarioRepository
+            .findByEmail(redefinirSenhaInputDTO.email().toLowerCase())
+            .orElseThrow(() ->
+                new CustomError("Usuário não encontrado", HttpStatus.BAD_REQUEST)
+            );
+
+        if (usuario.getStatus() != StatusUsuarioEnum.ATIVO) {
+            throw new CustomError("Usuário inativo", HttpStatus.BAD_REQUEST);
+        }
+
+        String novaSenha = gerarSenhaAleatoria();
+        usuario.setSenha(passwordEncoder.encode(novaSenha));
+        usuarioRepository.save(usuario);
+
+        // Como não há EmailService no Daniel Jurídico, apenas logamos a nova senha de forma mockada.
+        log.info("Senha redefinida para o e-mail: {}. Nova senha temporária gerada: {}", usuario.getEmail(), novaSenha);
+    }
+
+    private String gerarSenhaAleatoria() {
+        String maiusculas = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        String minusculas = "abcdefghijklmnopqrstuvwxyz";
+        String numeros = "0123456789";
+        
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        StringBuilder password = new StringBuilder();
+        
+        password.append(maiusculas.charAt(random.nextInt(maiusculas.length())));
+        password.append(minusculas.charAt(random.nextInt(minusculas.length())));
+        password.append(numeros.charAt(random.nextInt(numeros.length())));
+        
+        String todos = maiusculas + minusculas + numeros;
+        for (int i = 0; i < 9; i++) {
+            password.append(todos.charAt(random.nextInt(todos.length())));
+        }
+        
+        List<Character> characters = new java.util.ArrayList<>();
+        for (char c : password.toString().toCharArray()) {
+            characters.add(c);
+        }
+        java.util.Collections.shuffle(characters, random);
+        
+        StringBuilder shuffledPassword = new StringBuilder();
+        for (char c : characters) {
+            shuffledPassword.append(c);
+        }
+        
+        return shuffledPassword.toString();
+    }
+
+    @Override
+    @Transactional
+    public UsuarioResponseDTO editar(UUID id, EditarUsuarioInputDTO input) {
+        UsuarioEntity usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
+
+        Optional<UsuarioEntity> existingUser = usuarioRepository.findByEmail(input.email().toLowerCase());
+        if (existingUser.isPresent() && !existingUser.get().getId().equals(id)) {
+            throw new CustomError("E-mail já cadastrado para outro usuário", HttpStatus.BAD_REQUEST);
+        }
+
+        usuario.setNomeCompleto(input.nomeCompleto());
+        usuario.setEmail(input.email().toLowerCase());
+        usuario.setPerfil(input.perfil());
+        usuario.setStatus(input.status());
+        usuario.setTelefone(input.telefone());
+
+        if (input.senha() != null && !input.senha().isBlank()) {
+            usuario.setSenha(passwordEncoder.encode(input.senha()));
+        }
+
+        UsuarioEntity saved = usuarioRepository.save(usuario);
+        return usuarioMapper.toResponseDTO(saved);
+    }
+
+    @Override
+    @Transactional
+    public void excluir(UUID id) {
+        UsuarioEntity usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
+
+        // Neste projeto, como não há relacionamentos de chaves estrangeiras amarrados a UsuarioEntity na persistência atual, a deleção é direta.
+        usuarioRepository.delete(usuario);
+    }
+
+    @Override
+    public UsuarioResponseDTO obterUsuarioPorId(UUID id) {
+        UsuarioEntity usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
+        return usuarioMapper.toResponseDTO(usuario);
+    }
+
+    @Override
+    public List<UsuarioResponseDTO> obterTodosUsuarios(
+        int limit, int offset, String searchText, PerfilUsuarioEnum perfil, StatusUsuarioEnum status
+    ) {
+        String perfilStr = perfil != null ? perfil.name() : null;
+        String statusStr = status != null ? status.name() : null;
+
+        List<UsuarioEntity> usuarios = usuarioRepository.findPaginated(
+            searchText, perfilStr, statusStr, limit, offset
+        );
+
+        return usuarios.stream()
+            .map(usuarioMapper::toResponseDTO)
+            .toList();
+    }
+
+    @Override
+    public long contarTodosUsuarios(String searchText, PerfilUsuarioEnum perfil, StatusUsuarioEnum status) {
+        String perfilStr = perfil != null ? perfil.name() : null;
+        String statusStr = status != null ? status.name() : null;
+        return usuarioRepository.countWithFilter(searchText, perfilStr, statusStr);
+    }
 }
+

@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.shared.ApiResponse;
 import com.laweact.dto.shared.PaginationInfo;
-import com.laweact.dto.usuario.CadastrarUsuarioInputDTO;
 import com.laweact.dto.usuario.EditarUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
@@ -69,14 +68,6 @@ public class UsuarioController {
             @Valid @RequestBody RedefinirSenhaInputDTO redefinirSenhaInputDTO) {
         usuarioService.redefinirSenha(redefinirSenhaInputDTO);
         return ResponseEntity.ok(ApiResponse.success(true, "Operação realizada com sucesso"));
-    }
-
-    @PostMapping("/cadastrar")
-    @Operation(summary = "Cadastrar usuário", description = "Cadastro público para testes locais")
-    public ResponseEntity<ApiResponse<UsuarioResponseDTO>> cadastrar(
-            @Valid @RequestBody CadastrarUsuarioInputDTO input) {
-        UsuarioResponseDTO response = usuarioService.cadastrar(input);
-        return new ResponseEntity<>(ApiResponse.success(response, "Usuário criado com sucesso"), HttpStatus.CREATED);
     }
 
     @PutMapping("/editar/{id}")

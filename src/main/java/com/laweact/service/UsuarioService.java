@@ -3,7 +3,6 @@ package com.laweact.service;
 import java.util.List;
 import java.util.UUID;
 
-import com.laweact.dto.usuario.CadastrarUsuarioInputDTO;
 import com.laweact.dto.usuario.EditarUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
@@ -16,8 +15,6 @@ public interface UsuarioService {
     LoginUsuarioResponseDTO login(LoginUsuarioInputDTO loginUsuarioDTO);
 
     void logout(String token);
-
-    UsuarioResponseDTO cadastrar(CadastrarUsuarioInputDTO input);
 
     UsuarioResponseDTO obterUsuarioAutenticado();
 

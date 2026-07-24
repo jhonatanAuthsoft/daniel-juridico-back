@@ -2,7 +2,6 @@ package com.laweact.service.imp;
 
 import com.laweact.config.JwtUtil;
 import com.laweact.config.exception.CustomError;
-import com.laweact.dto.usuario.CadastrarUsuarioInputDTO;
 import com.laweact.dto.usuario.EditarUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
@@ -78,28 +77,6 @@ public class UsuarioServiceImp implements UsuarioService {
                 .revogadoEm(LocalDateTime.now())
                 .build();
         tokenRevogadoRepository.save(tokenRevogado);
-    }
-
-    @Override
-    @Transactional
-    public UsuarioResponseDTO cadastrar(CadastrarUsuarioInputDTO input) {
-        String email = input.email().toLowerCase();
-        Optional<UsuarioEntity> existingUser = usuarioRepository.findByEmail(email);
-        if (existingUser.isPresent()) {
-            throw new CustomError("E-mail já cadastrado", HttpStatus.BAD_REQUEST);
-        }
-
-        UsuarioEntity usuario = UsuarioEntity.builder()
-                .nomeCompleto(input.nomeCompleto())
-                .email(email)
-                .senha(passwordEncoder.encode(input.senha()))
-                .perfil(input.perfil())
-                .status(input.status() != null ? input.status() : StatusUsuarioEnum.ATIVO)
-                .telefone(input.telefone())
-                .build();
-
-        UsuarioEntity saved = usuarioRepository.save(usuario);
-        return usuarioMapper.toResponseDTO(saved);
     }
 
     @Override

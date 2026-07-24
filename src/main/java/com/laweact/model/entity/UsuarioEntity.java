@@ -19,6 +19,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -50,6 +51,13 @@ public class UsuarioEntity extends BaseEntity implements UserDetails, Serializab
 
     @Column(name = "telefone", length = 30)
     private String telefone;
+
+    @Builder.Default
+    @Column(name = "tentativas_login_falhas", nullable = false)
+    private Integer tentativasLoginFalhas = 0;
+
+    @Column(name = "bloqueado_ate")
+    private LocalDateTime bloqueadoAte;
 
     @Override
     @JsonIgnore
@@ -83,7 +91,10 @@ public class UsuarioEntity extends BaseEntity implements UserDetails, Serializab
     @Override
     @JsonIgnore
     public boolean isAccountNonLocked() {
-        return status != StatusUsuarioEnum.BLOQUEADO;
+        if (status == StatusUsuarioEnum.BLOQUEADO) {
+            return false;
+        }
+        return bloqueadoAte == null || bloqueadoAte.isBefore(LocalDateTime.now());
     }
 
     @Override

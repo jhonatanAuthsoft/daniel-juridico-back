@@ -1,0 +1,131 @@
+package com.laweact.e2e;
+
+import static com.laweact.e2e.support.ApiAssertions.assertErrorDetailContains;
+import static com.laweact.e2e.support.ApiAssertions.assertSuccess;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.Map;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.laweact.dto.usuario.LoginUsuarioInputDTO;
+import com.laweact.e2e.support.Fixtures;
+
+@DisplayName("E2E — POST /usuarios/login")
+class UsuarioLoginE2ETest extends BaseE2ETest {
+
+    @Test
+    @DisplayName("deve autenticar cliente com e-mail e senha válidos e retornar JWT")
+    void shouldLoginClienteSuccessfully() {
+        // Arrange
+        String email = "login.cliente@laweact.com";
+        api.post("/clientes/cadastrar", Fixtures.clienteValido(email, "52998224725"));
+        LoginUsuarioInputDTO login = LoginUsuarioInputDTO.builder()
+                .email(email)
+                .senha(Fixtures.VALID_PASSWORD)
+                .build();
+
+        // Act
+        ResponseEntity<JsonNode> response = api.post("/usuarios/login", login);
+
+        // Assert
+        assertSuccess(response, HttpStatus.OK);
+        JsonNode data = response.getBody().path("data");
+        assertThat(data.path("token").asText()).isNotBlank();
+        assertThat(data.path("usuario").path("email").asText()).isEqualTo(email);
+        assertThat(data.path("usuario").path("perfil").asText()).isEqualTo("CLIENTE");
+    }
+
+    @Test
+    @DisplayName("deve autenticar advogado com e-mail e senha válidos e retornar JWT")
+    void shouldLoginAdvogadoSuccessfully() {
+        // Arrange
+        String email = "login.advogado@laweact.com";
+        api.post("/advogados/cadastrar", Fixtures.advogadoValido(email, "39053344705", "555555"));
+        LoginUsuarioInputDTO login = LoginUsuarioInputDTO.builder()
+                .email(email)
+                .senha(Fixtures.VALID_PASSWORD)
+                .build();
+
+        // Act
+        ResponseEntity<JsonNode> response = api.post("/usuarios/login", login);
+
+        // Assert
+        assertSuccess(response, HttpStatus.OK);
+        JsonNode data = response.getBody().path("data");
+        assertThat(data.path("token").asText()).isNotBlank();
+        assertThat(data.path("usuario").path("perfil").asText()).isEqualTo("ADVOGADO");
+    }
+
+    @Test
+    @DisplayName("deve permitir usar o JWT do login em GET /usuarios/me")
+    void shouldAccessMeWithLoginToken() {
+        // Arrange
+        String email = "login.me@laweact.com";
+        api.post("/clientes/cadastrar", Fixtures.clienteValido(email, "11144477735"));
+        ResponseEntity<JsonNode> loginResponse = api.post(
+                "/usuarios/login",
+                LoginUsuarioInputDTO.builder().email(email).senha(Fixtures.VALID_PASSWORD).build()
+        );
+        String token = loginResponse.getBody().path("data").path("token").asText();
+        api.authenticate(token);
+
+        // Act
+        ResponseEntity<JsonNode> meResponse = api.get("/usuarios/me");
+
+        // Assert
+        assertSuccess(meResponse, HttpStatus.OK);
+        assertThat(meResponse.getBody().path("data").path("email").asText()).isEqualTo(email);
+    }
+
+    @Test
+    @DisplayName("deve retornar erro genérico se a senha estiver incorreta")
+    void shouldFailWhenPasswordIsWrong() {
+        // Arrange
+        String email = "login.senhaerrada@laweact.com";
+        api.post("/clientes/cadastrar", Fixtures.clienteValido(email, "52998224725"));
+
+        // Act
+        ResponseEntity<JsonNode> response = api.post(
+                "/usuarios/login",
+                LoginUsuarioInputDTO.builder().email(email).senha("WrongPass1").build()
+        );
+
+        // Assert
+        assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "E-mail ou senha inválidos");
+    }
+
+    @Test
+    @DisplayName("deve retornar erro genérico se o e-mail não existir")
+    void shouldFailWhenEmailDoesNotExist() {
+        // Arrange
+        LoginUsuarioInputDTO login = LoginUsuarioInputDTO.builder()
+                .email("naoexiste@laweact.com")
+                .senha(Fixtures.VALID_PASSWORD)
+                .build();
+
+        // Act
+        ResponseEntity<JsonNode> response = api.post("/usuarios/login", login);
+
+        // Assert
+        assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "E-mail ou senha inválidos");
+    }
+
+    @Test
+    @DisplayName("deve retornar erro de validação se e-mail estiver em branco")
+    void shouldFailWhenEmailIsBlank() {
+        // Arrange
+        Map<String, String> body = Map.of("email", "", "senha", Fixtures.VALID_PASSWORD);
+
+        // Act
+        ResponseEntity<JsonNode> response = api.post("/usuarios/login", body);
+
+        // Assert
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(response.getBody().path("success").asBoolean()).isFalse();
+    }
+}

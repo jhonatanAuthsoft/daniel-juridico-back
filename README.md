@@ -113,4 +113,30 @@ curl -s -X POST http://localhost:8080/usuarios/login \
   -d '{"email":"maria@laweact.com","senha":"Secret12"}'
 ```
 
+## Testes E2E
+
+Os testes sobem a API em porta aleatória e batem nos endpoints HTTP de verdade.
+
+**Padrão:** um único Postgres (Testcontainers singleton) para toda a suíte.
+Isolamento = `TRUNCATE` entre testes — o container **não** é destruído a cada classe.
+
+```bash
+# Docker Desktop aberto
+./mvnw test
+```
+
+**Alternativa manual** (banco fixo na porta 5433):
+
+```bash
+docker compose up -d db-test
+```
+
+Cobertura:
+- `POST /clientes/cadastrar` — sucesso, e-mail/documento duplicados, validações de senha/e-mail/termos
+- `POST /advogados/cadastrar` — sucesso, e-mail/CPF/OAB duplicados, termos
+- `POST /usuarios/login` — cliente/advogado, JWT em `/me`, senha/e-mail inválidos
+
+Cada teste limpa o banco (`TRUNCATE … CASCADE`) no `beforeEach`/`afterEach` (AAA + isolamento).
+
 Altere `jwt.secret` em `application-local.properties` antes de ambientes compartilhados.
+

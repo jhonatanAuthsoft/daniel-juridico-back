@@ -41,7 +41,11 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
         assertThat(data.path("advogado").path("statusVerificacao").asText()).isEqualTo("PENDENTE");
         assertThat(data.path("oabs")).hasSize(1);
         assertThat(data.path("oabs").get(0).path("principal").asBoolean()).isTrue();
+        assertThat(data.path("oabs").get(0).path("dataExpedicao").asText()).isEqualTo("2016-03-15");
         assertThat(data.path("areasAtuacao")).hasSize(1);
+        assertThat(data.path("modalidades").get(0).path("codigo").asText()).isEqualTo("GENERALISTA");
+        assertThat(data.path("formasCobranca")).hasSize(1);
+        assertThat(data.path("endereco").path("complemento").asText()).isEqualTo("Conjunto 41");
 
         // Assert — DB
         UsuarioEntity usuarioDb = usuarioRepository.findByEmail(email).orElseThrow();
@@ -153,6 +157,9 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
                 .estado(input.estado())
                 .oabPrincipal(input.oabPrincipal())
                 .areasAtuacao(input.areasAtuacao())
+                .modalidades(input.modalidades())
+                .especialidades(input.especialidades())
+                .formasCobranca(input.formasCobranca())
                 .aceiteTermos(false)
                 .build();
 

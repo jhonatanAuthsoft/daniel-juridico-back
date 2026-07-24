@@ -47,8 +47,14 @@ public class ClienteEntity {
     @Column(name = "nome_completo", nullable = false)
     private String nomeCompleto;
 
-    @Column(name = "profissao", nullable = false)
+    @Column(name = "profissao")
     private String profissao;
+
+    @Column(name = "razao_social")
+    private String razaoSocial;
+
+    @Column(name = "area_atuacao")
+    private String areaAtuacao;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_documento", nullable = false, length = 10)
@@ -57,10 +63,10 @@ public class ClienteEntity {
     @Column(name = "numero_documento", nullable = false, length = 20)
     private String numeroDocumento;
 
-    @Column(name = "rg", nullable = false, length = 30)
+    @Column(name = "rg", length = 30)
     private String rg;
 
-    @Column(name = "data_nascimento", nullable = false)
+    @Column(name = "data_nascimento")
     private LocalDate dataNascimento;
 
     @Enumerated(EnumType.STRING)

@@ -36,6 +36,9 @@ public class EnderecoEntity extends BaseEntity {
     @Column(name = "numero", nullable = false, length = 30)
     private String numero;
 
+    @Column(name = "complemento", length = 255)
+    private String complemento;
+
     @Column(name = "bairro", nullable = false, length = 120)
     private String bairro;
 

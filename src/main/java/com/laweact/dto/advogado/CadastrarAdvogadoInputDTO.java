@@ -90,6 +90,8 @@ public record CadastrarAdvogadoInputDTO(
         @NotBlank(message = "O número do endereço é obrigatório")
         String numero,
 
+        String complemento,
+
         @NotBlank(message = "O bairro é obrigatório")
         String bairro,
 
@@ -104,12 +106,25 @@ public record CadastrarAdvogadoInputDTO(
         @Valid
         OabInputDTO oabPrincipal,
 
+        @Size(max = 5, message = "São permitidas no máximo 5 OABs suplementares")
         @Valid
         List<OabInputDTO> oabsSuplementares,
 
         @NotEmpty(message = "Informe ao menos uma área de atuação")
         @Valid
         List<AreaAtuacaoInputDTO> areasAtuacao,
+
+        @NotEmpty(message = "Informe ao menos uma modalidade de atuação")
+        List<String> modalidades,
+
+        @Valid
+        List<EspecialidadeInputDTO> especialidades,
+
+        @NotEmpty(message = "Informe ao menos uma forma de cobrança")
+        List<String> formasCobranca,
+
+        @Valid
+        List<PosGraduacaoInputDTO> posGraduacoes,
 
         @NotNull(message = "O aceite dos termos é obrigatório")
         Boolean aceiteTermos

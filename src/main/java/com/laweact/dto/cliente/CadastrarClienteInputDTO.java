@@ -15,8 +15,11 @@ import lombok.Builder;
 
 @Builder
 public record CadastrarClienteInputDTO(
-        @NotBlank(message = "O nome completo é obrigatório")
         String nomeCompleto,
+
+        String razaoSocial,
+
+        String areaAtuacao,
 
         @NotBlank(message = "O e-mail é obrigatório")
         @Email(message = "O e-mail deve ser válido")
@@ -30,7 +33,6 @@ public record CadastrarClienteInputDTO(
         )
         String senha,
 
-        @NotBlank(message = "A profissão é obrigatória")
         String profissao,
 
         @NotNull(message = "O tipo de documento é obrigatório")
@@ -39,10 +41,8 @@ public record CadastrarClienteInputDTO(
         @NotBlank(message = "O número do documento é obrigatório")
         String numeroDocumento,
 
-        @NotBlank(message = "O RG é obrigatório")
         String rg,
 
-        @NotNull(message = "A data de nascimento é obrigatória")
         @Past(message = "A data de nascimento deve ser no passado")
         LocalDate dataNascimento,
 
@@ -61,6 +61,8 @@ public record CadastrarClienteInputDTO(
 
         @NotBlank(message = "O número do endereço é obrigatório")
         String numero,
+
+        String complemento,
 
         @NotBlank(message = "O bairro é obrigatório")
         String bairro,

@@ -46,6 +46,7 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
         assertThat(data.path("usuario").path("perfil").asText()).isEqualTo("CLIENTE");
         assertThat(data.path("cliente").path("numeroDocumento").asText()).isEqualTo(documento);
         assertThat(data.path("endereco").path("cidade").asText()).isEqualTo("São Paulo");
+        assertThat(data.path("endereco").path("complemento").asText()).isEqualTo("Apto 12");
 
         // Assert — persistência
         UsuarioEntity usuarioDb = usuarioRepository.findByEmail(email).orElseThrow();
@@ -65,6 +66,54 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
                 usuarioDb.getId()
         );
         assertThat(enderecos).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("deve criar cliente PJ com CNPJ (razão social + área de atuação)")
+    void shouldCreateClienteCnpjSuccessfully() {
+        String email = "empresa.sucesso@laweact.com";
+        String cnpj = "11222333000181";
+        CadastrarClienteInputDTO input = Fixtures.clienteCnpjValido(email, cnpj);
+
+        ResponseEntity<JsonNode> response = api.post("/clientes/cadastrar", input);
+
+        assertSuccess(response, HttpStatus.CREATED);
+        JsonNode data = response.getBody().path("data");
+        assertThat(data.path("cliente").path("tipoDocumento").asText()).isEqualTo("CNPJ");
+        assertThat(data.path("cliente").path("razaoSocial").asText()).isEqualTo("Empresa Exemplo LTDA");
+        assertThat(data.path("cliente").path("areaAtuacao").asText()).isEqualTo("Tecnologia");
+        assertThat(data.path("cliente").path("numeroDocumento").asText()).isEqualTo(cnpj);
+        assertThat(data.path("endereco").path("complemento").asText()).isEqualTo("Sala 200");
+
+        UsuarioEntity usuarioDb = usuarioRepository.findByEmail(email).orElseThrow();
+        assertThat(usuarioDb.getNomeCompleto()).isEqualTo("Empresa Exemplo LTDA");
+        ClienteEntity clienteDb = clienteRepository.findByUsuarioId(usuarioDb.getId()).orElseThrow();
+        assertThat(clienteDb.getRazaoSocial()).isEqualTo("Empresa Exemplo LTDA");
+        assertThat(clienteDb.getRg()).isNull();
+    }
+
+    @Test
+    @DisplayName("deve exigir razão social e área de atuação para CNPJ")
+    void shouldFailCnpjWithoutRazaoSocial() {
+        CadastrarClienteInputDTO input = CadastrarClienteInputDTO.builder()
+                .email("empresa.invalida@laweact.com")
+                .senha(Fixtures.VALID_PASSWORD)
+                .tipoDocumento(com.laweact.model.enums.TipoDocumentoEnum.CNPJ)
+                .numeroDocumento("11222333000181")
+                .pronomes(com.laweact.model.enums.PronomesEnum.NEUTRO)
+                .telefone("1133334444")
+                .cep("01310-100")
+                .logradouro("Av. Paulista")
+                .numero("1000")
+                .bairro("Bela Vista")
+                .cidade("São Paulo")
+                .estado("SP")
+                .aceiteTermos(true)
+                .build();
+
+        ResponseEntity<JsonNode> response = api.post("/clientes/cadastrar", input);
+
+        assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "razão social");
     }
 
     @Test

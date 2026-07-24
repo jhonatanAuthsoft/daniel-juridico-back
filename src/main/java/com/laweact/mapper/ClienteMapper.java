@@ -3,6 +3,7 @@ package com.laweact.mapper;
 import org.springframework.stereotype.Component;
 
 import com.laweact.dto.cliente.CadastrarClienteResponseDTO;
+import com.laweact.dto.cliente.ClienteDetalheResponseDTO;
 import com.laweact.dto.cliente.ClientePerfilResponseDTO;
 import com.laweact.dto.cliente.EnderecoResponseDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
@@ -23,6 +24,8 @@ public class ClienteMapper {
         return ClientePerfilResponseDTO.builder()
                 .usuarioId(cliente.getUsuarioId())
                 .nomeCompleto(cliente.getNomeCompleto())
+                .razaoSocial(cliente.getRazaoSocial())
+                .areaAtuacao(cliente.getAreaAtuacao())
                 .profissao(cliente.getProfissao())
                 .tipoDocumento(cliente.getTipoDocumento())
                 .numeroDocumento(cliente.getNumeroDocumento())
@@ -41,9 +44,17 @@ public class ClienteMapper {
                 .cep(endereco.getCep())
                 .logradouro(endereco.getLogradouro())
                 .numero(endereco.getNumero())
+                .complemento(endereco.getComplemento())
                 .bairro(endereco.getBairro())
                 .cidade(endereco.getCidade())
                 .estado(endereco.getEstado())
+                .build();
+    }
+
+    public ClienteDetalheResponseDTO toDetalheResponse(ClienteEntity cliente, EnderecoEntity endereco) {
+        return ClienteDetalheResponseDTO.builder()
+                .perfil(toPerfilResponse(cliente))
+                .endereco(endereco != null ? toEnderecoResponse(endereco) : null)
                 .build();
     }
 

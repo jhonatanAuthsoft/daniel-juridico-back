@@ -9,6 +9,7 @@ import com.laweact.config.JwtUtil;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.cliente.CadastrarClienteInputDTO;
 import com.laweact.dto.cliente.CadastrarClienteResponseDTO;
+import com.laweact.dto.cliente.ClienteDetalheResponseDTO;
 import com.laweact.mapper.ClienteMapper;
 import com.laweact.model.entity.ClienteEntity;
 import com.laweact.model.entity.EnderecoEntity;
@@ -45,6 +46,8 @@ public class ClienteServiceImp implements ClienteService {
             throw new CustomError("É obrigatório aceitar os termos de uso", HttpStatus.BAD_REQUEST);
         }
 
+        validarCamposPorTipoDocumento(input);
+
         String email = input.email().toLowerCase().trim();
         String documento = normalizarDocumento(input.numeroDocumento());
         validarDocumento(input.tipoDocumento(), documento);
@@ -56,8 +59,10 @@ public class ClienteServiceImp implements ClienteService {
             throw new CustomError("Documento já cadastrado", HttpStatus.BAD_REQUEST);
         }
 
+        String nomeExibicao = resolverNomeExibicao(input);
+
         UsuarioEntity usuario = UsuarioEntity.builder()
-                .nomeCompleto(input.nomeCompleto().trim())
+                .nomeCompleto(nomeExibicao)
                 .email(email)
                 .senha(passwordEncoder.encode(input.senha()))
                 .perfil(PerfilUsuarioEnum.CLIENTE)
@@ -68,27 +73,35 @@ public class ClienteServiceImp implements ClienteService {
 
         UsuarioEntity usuarioSalvo = usuarioRepository.save(usuario);
 
-        ClienteEntity cliente = ClienteEntity.builder()
+        ClienteEntity.ClienteEntityBuilder clienteBuilder = ClienteEntity.builder()
                 .usuario(usuarioSalvo)
-                .nomeCompleto(input.nomeCompleto().trim())
-                .profissao(input.profissao().trim())
+                .nomeCompleto(nomeExibicao)
                 .tipoDocumento(input.tipoDocumento())
                 .numeroDocumento(documento)
-                .rg(input.rg().trim())
-                .dataNascimento(input.dataNascimento())
                 .pronomes(input.pronomes())
                 .fotoUrl(blankToNull(input.fotoUrl()))
                 .faixaRenda(blankToNull(input.faixaRenda()))
-                .estadoCivil(blankToNull(input.estadoCivil()))
-                .build();
+                .estadoCivil(blankToNull(input.estadoCivil()));
 
-        ClienteEntity clienteSalvo = clienteRepository.save(cliente);
+        if (input.tipoDocumento() == TipoDocumentoEnum.CPF) {
+            clienteBuilder
+                    .profissao(input.profissao().trim())
+                    .rg(input.rg().trim())
+                    .dataNascimento(input.dataNascimento());
+        } else {
+            clienteBuilder
+                    .razaoSocial(input.razaoSocial().trim())
+                    .areaAtuacao(input.areaAtuacao().trim());
+        }
+
+        ClienteEntity clienteSalvo = clienteRepository.save(clienteBuilder.build());
 
         EnderecoEntity endereco = EnderecoEntity.builder()
                 .usuario(usuarioSalvo)
                 .cep(normalizarCep(input.cep()))
                 .logradouro(input.logradouro().trim())
                 .numero(input.numero().trim())
+                .complemento(blankToNull(input.complemento()))
                 .bairro(input.bairro().trim())
                 .cidade(input.cidade().trim())
                 .estado(input.estado().trim().toUpperCase())
@@ -101,6 +114,50 @@ public class ClienteServiceImp implements ClienteService {
 
         log.info("Cliente cadastrado: {}", email);
         return clienteMapper.toCadastrarResponse(usuarioSalvo, clienteSalvo, enderecoSalvo, token);
+    }
+
+    public ClienteDetalheResponseDTO carregarDetalhe(java.util.UUID usuarioId) {
+        ClienteEntity cliente = clienteRepository.findByUsuarioId(usuarioId)
+                .orElseThrow(() -> new CustomError("Perfil de cliente não encontrado", HttpStatus.NOT_FOUND));
+        EnderecoEntity endereco = enderecoRepository.findByUsuario_Id(usuarioId).orElse(null);
+        return clienteMapper.toDetalheResponse(cliente, endereco);
+    }
+
+    private void validarCamposPorTipoDocumento(CadastrarClienteInputDTO input) {
+        if (input.tipoDocumento() == TipoDocumentoEnum.CPF) {
+            if (isBlank(input.nomeCompleto())) {
+                throw new CustomError("O nome completo é obrigatório para CPF", HttpStatus.BAD_REQUEST);
+            }
+            if (isBlank(input.rg())) {
+                throw new CustomError("O RG é obrigatório para CPF", HttpStatus.BAD_REQUEST);
+            }
+            if (input.dataNascimento() == null) {
+                throw new CustomError("A data de nascimento é obrigatória para CPF", HttpStatus.BAD_REQUEST);
+            }
+            if (isBlank(input.profissao())) {
+                throw new CustomError("A profissão é obrigatória para CPF", HttpStatus.BAD_REQUEST);
+            }
+            return;
+        }
+
+        if (input.tipoDocumento() == TipoDocumentoEnum.CNPJ) {
+            if (isBlank(input.razaoSocial())) {
+                throw new CustomError("A razão social é obrigatória para CNPJ", HttpStatus.BAD_REQUEST);
+            }
+            if (isBlank(input.areaAtuacao())) {
+                throw new CustomError("A área de atuação é obrigatória para CNPJ", HttpStatus.BAD_REQUEST);
+            }
+        }
+    }
+
+    private String resolverNomeExibicao(CadastrarClienteInputDTO input) {
+        if (input.tipoDocumento() == TipoDocumentoEnum.CNPJ) {
+            if (!isBlank(input.nomeCompleto())) {
+                return input.nomeCompleto().trim();
+            }
+            return input.razaoSocial().trim();
+        }
+        return input.nomeCompleto().trim();
     }
 
     private void validarDocumento(TipoDocumentoEnum tipo, String documento) {
@@ -124,8 +181,12 @@ public class ClienteServiceImp implements ClienteService {
         return digits.substring(0, 5) + "-" + digits.substring(5);
     }
 
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
     private String blankToNull(String value) {
-        if (value == null || value.isBlank()) {
+        if (isBlank(value)) {
             return null;
         }
         return value.trim();

@@ -16,5 +16,9 @@ public record CadastrarAdvogadoResponseDTO(
         @NotNull EnderecoResponseDTO endereco,
         @NotNull List<OabResponseDTO> oabs,
         @NotNull List<AreaAtuacaoResponseDTO> areasAtuacao,
+        @NotNull List<CatalogoItemResponseDTO> modalidades,
+        @NotNull List<EspecialidadeResponseDTO> especialidades,
+        @NotNull List<CatalogoItemResponseDTO> formasCobranca,
+        @NotNull List<PosGraduacaoResponseDTO> posGraduacoes,
         @NotBlank String token
 ) {}

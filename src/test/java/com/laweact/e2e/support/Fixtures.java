@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.laweact.dto.advogado.AreaAtuacaoInputDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoInputDTO;
+import com.laweact.dto.advogado.EspecialidadeInputDTO;
 import com.laweact.dto.advogado.OabInputDTO;
 import com.laweact.dto.cliente.CadastrarClienteInputDTO;
 import com.laweact.model.enums.PronomeTratamentoEnum;
@@ -33,6 +34,28 @@ public final class Fixtures {
                 .cep("01310-100")
                 .logradouro("Av. Paulista")
                 .numero("1000")
+                .complemento("Apto 12")
+                .bairro("Bela Vista")
+                .cidade("São Paulo")
+                .estado("SP")
+                .aceiteTermos(true)
+                .build();
+    }
+
+    public static CadastrarClienteInputDTO clienteCnpjValido(String email, String cnpj) {
+        return CadastrarClienteInputDTO.builder()
+                .razaoSocial("Empresa Exemplo LTDA")
+                .areaAtuacao("Tecnologia")
+                .email(email)
+                .senha(VALID_PASSWORD)
+                .tipoDocumento(TipoDocumentoEnum.CNPJ)
+                .numeroDocumento(cnpj)
+                .pronomes(PronomesEnum.NEUTRO)
+                .telefone("1133334444")
+                .cep("01310-100")
+                .logradouro("Av. Paulista")
+                .numero("1000")
+                .complemento("Sala 200")
                 .bairro("Bela Vista")
                 .cidade("São Paulo")
                 .estado("SP")
@@ -82,11 +105,19 @@ public final class Fixtures {
                 .cep("01310-100")
                 .logradouro("Av. Paulista")
                 .numero("1500")
+                .complemento("Conjunto 41")
                 .bairro("Bela Vista")
                 .cidade("São Paulo")
                 .estado("SP")
-                .oabPrincipal(OabInputDTO.builder().numero(oabNumero).uf("SP").build())
+                .oabPrincipal(OabInputDTO.builder()
+                        .numero(oabNumero)
+                        .uf("SP")
+                        .dataExpedicao(LocalDate.of(2016, 3, 15))
+                        .build())
                 .areasAtuacao(List.of(AreaAtuacaoInputDTO.builder().estado("SP").cidade("São Paulo").build()))
+                .modalidades(List.of("GENERALISTA"))
+                .especialidades(List.of(EspecialidadeInputDTO.builder().especialidadeCodigo("CIVIL").build()))
+                .formasCobranca(List.of("HONORARIOS_CONTRATUAIS"))
                 .aceiteTermos(true)
                 .build();
     }

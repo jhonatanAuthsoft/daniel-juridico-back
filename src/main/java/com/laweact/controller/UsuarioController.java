@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,9 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.shared.ApiResponse;
 import com.laweact.dto.shared.PaginationInfo;
-import com.laweact.dto.usuario.EditarUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
+import com.laweact.dto.usuario.MeResponseDTO;
 import com.laweact.dto.usuario.RedefinirSenhaInputDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
 import com.laweact.model.enums.PerfilUsuarioEnum;
@@ -54,8 +53,11 @@ public class UsuarioController {
     public ResponseEntity<ApiResponse<Boolean>> logout(HttpServletRequest request) {
         String authorizationHeader = request.getHeader("Authorization");
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            throw new CustomError("Cabeçalho de autorização ausente ou inválido", HttpStatus.BAD_REQUEST,
-                    "INVALID_REQUEST");
+            throw new CustomError(
+                    "Cabeçalho de autorização ausente ou inválido",
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_REQUEST"
+            );
         }
         String token = authorizationHeader.substring(7);
         usuarioService.logout(token);
@@ -70,15 +72,6 @@ public class UsuarioController {
         return ResponseEntity.ok(ApiResponse.success(true, "Operação realizada com sucesso"));
     }
 
-    @PutMapping("/editar/{id}")
-    @Operation(summary = "Edita um usuário existente")
-    public ResponseEntity<ApiResponse<UsuarioResponseDTO>> editar(
-            @PathVariable UUID id,
-            @Valid @RequestBody EditarUsuarioInputDTO input) {
-        UsuarioResponseDTO response = usuarioService.editar(id, input);
-        return ResponseEntity.ok(ApiResponse.success(response, "Usuário atualizado com sucesso"));
-    }
-
     @DeleteMapping("/excluir/{id}")
     @Operation(summary = "Exclui um usuário")
     public ResponseEntity<ApiResponse<Void>> excluir(@PathVariable UUID id) {
@@ -86,17 +79,17 @@ public class UsuarioController {
         return new ResponseEntity<>(ApiResponse.success("Operação realizada com sucesso"), HttpStatus.NO_CONTENT);
     }
 
+    @GetMapping("/me")
+    @Operation(summary = "Usuário autenticado", description = "Retorna o usuário logado com detalhe do perfil (cliente ou advogado)")
+    public ResponseEntity<ApiResponse<MeResponseDTO>> me() {
+        MeResponseDTO response = usuarioService.obterUsuarioAutenticado();
+        return ResponseEntity.ok(ApiResponse.success(response, "Consulta realizada com sucesso"));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Obtém detalhes de um usuário pelo ID")
     public ResponseEntity<ApiResponse<UsuarioResponseDTO>> obterUsuarioPorId(@PathVariable UUID id) {
         UsuarioResponseDTO response = usuarioService.obterUsuarioPorId(id);
-        return ResponseEntity.ok(ApiResponse.success(response, "Consulta realizada com sucesso"));
-    }
-
-    @GetMapping("/me")
-    @Operation(summary = "Usuário autenticado", description = "Retorna o usuário logado")
-    public ResponseEntity<ApiResponse<UsuarioResponseDTO>> me() {
-        UsuarioResponseDTO response = usuarioService.obterUsuarioAutenticado();
         return ResponseEntity.ok(ApiResponse.success(response, "Consulta realizada com sucesso"));
     }
 

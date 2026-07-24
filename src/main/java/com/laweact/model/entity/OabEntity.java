@@ -1,5 +1,7 @@
 package com.laweact.model.entity;
 
+import java.time.LocalDate;
+
 import com.laweact.model.enums.StatusVerificacaoEnum;
 
 import jakarta.persistence.Column;
@@ -34,6 +36,9 @@ public class OabEntity extends BaseEntity {
 
     @Column(name = "uf", nullable = false, length = 2)
     private String uf;
+
+    @Column(name = "data_expedicao", nullable = false)
+    private LocalDate dataExpedicao;
 
     @Builder.Default
     @Column(name = "principal", nullable = false)

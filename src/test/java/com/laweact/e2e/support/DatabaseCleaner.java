@@ -13,12 +13,15 @@ public class DatabaseCleaner {
     }
 
     /**
-     * Limpa todas as tabelas de negócio, mantendo o schema Flyway.
-     * Equivalente ao clearDatabase() do exemplo Node — cada teste fica isolado.
+     * Limpa dados de negócio, preservando catálogos seedados (modalidades, especialidades, cobrança).
      */
     public void clear() {
         jdbcTemplate.execute("""
                 TRUNCATE TABLE
+                  advogado_especialidades,
+                  advogado_formas_cobranca,
+                  advogado_modalidades,
+                  pos_graduacoes_advogado,
                   areas_atuacao_advogado,
                   oabs,
                   advogados,

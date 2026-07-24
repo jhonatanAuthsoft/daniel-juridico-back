@@ -38,6 +38,8 @@ class UsuarioLoginE2ETest extends BaseE2ETest {
         assertThat(data.path("token").asText()).isNotBlank();
         assertThat(data.path("usuario").path("email").asText()).isEqualTo(email);
         assertThat(data.path("usuario").path("perfil").asText()).isEqualTo("CLIENTE");
+        assertThat(data.path("cliente").path("perfil").path("tipoDocumento").asText()).isEqualTo("CPF");
+        assertThat(data.path("advogado").isMissingNode() || data.path("advogado").isNull()).isTrue();
     }
 
     @Test
@@ -59,6 +61,9 @@ class UsuarioLoginE2ETest extends BaseE2ETest {
         JsonNode data = response.getBody().path("data");
         assertThat(data.path("token").asText()).isNotBlank();
         assertThat(data.path("usuario").path("perfil").asText()).isEqualTo("ADVOGADO");
+        assertThat(data.path("advogado").path("perfil").path("cpf").asText()).isEqualTo("39053344705");
+        assertThat(data.path("advogado").path("oabs").get(0).path("dataExpedicao").asText()).isEqualTo("2016-03-15");
+        assertThat(data.path("cliente").isMissingNode() || data.path("cliente").isNull()).isTrue();
     }
 
     @Test
@@ -79,7 +84,9 @@ class UsuarioLoginE2ETest extends BaseE2ETest {
 
         // Assert
         assertSuccess(meResponse, HttpStatus.OK);
-        assertThat(meResponse.getBody().path("data").path("email").asText()).isEqualTo(email);
+        assertThat(meResponse.getBody().path("data").path("usuario").path("email").asText()).isEqualTo(email);
+        assertThat(meResponse.getBody().path("data").path("cliente").path("perfil").path("nomeCompleto").asText())
+                .isEqualTo("Maria Silva");
     }
 
     @Test

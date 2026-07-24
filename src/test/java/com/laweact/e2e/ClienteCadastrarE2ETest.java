@@ -117,6 +117,68 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
     }
 
     @Test
+    @DisplayName("deve exigir área de atuação para CNPJ")
+    void shouldFailCnpjWithoutAreaAtuacao() {
+        CadastrarClienteInputDTO input = CadastrarClienteInputDTO.builder()
+                .razaoSocial("Empresa Sem Area LTDA")
+                .email("empresa.semarea@laweact.com")
+                .senha(Fixtures.VALID_PASSWORD)
+                .tipoDocumento(com.laweact.model.enums.TipoDocumentoEnum.CNPJ)
+                .numeroDocumento("11222333000181")
+                .pronomes(com.laweact.model.enums.PronomesEnum.NEUTRO)
+                .telefone("1133334444")
+                .cep("01310-100")
+                .logradouro("Av. Paulista")
+                .numero("1000")
+                .bairro("Bela Vista")
+                .cidade("São Paulo")
+                .estado("SP")
+                .aceiteTermos(true)
+                .build();
+
+        ResponseEntity<JsonNode> response = api.post("/clientes/cadastrar", input);
+
+        assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "área de atuação");
+        assertThat(usuarioRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("deve exigir campos de CPF (nome, RG, nascimento, profissão)")
+    void shouldFailCpfWithoutRequiredFields() {
+        CadastrarClienteInputDTO input = CadastrarClienteInputDTO.builder()
+                .email("cpf.incompleto@laweact.com")
+                .senha(Fixtures.VALID_PASSWORD)
+                .tipoDocumento(com.laweact.model.enums.TipoDocumentoEnum.CPF)
+                .numeroDocumento("52998224725")
+                .pronomes(com.laweact.model.enums.PronomesEnum.ELA)
+                .telefone("11999999999")
+                .cep("01310-100")
+                .logradouro("Av. Paulista")
+                .numero("1000")
+                .bairro("Bela Vista")
+                .cidade("São Paulo")
+                .estado("SP")
+                .aceiteTermos(true)
+                .build();
+
+        ResponseEntity<JsonNode> response = api.post("/clientes/cadastrar", input);
+
+        assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "nome completo");
+        assertThat(usuarioRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("deve rejeitar CNPJ com tamanho inválido")
+    void shouldFailWhenCnpjHasInvalidLength() {
+        CadastrarClienteInputDTO input = Fixtures.clienteCnpjValido("empresa.cnpjinvalido@laweact.com", "123");
+
+        ResponseEntity<JsonNode> response = api.post("/clientes/cadastrar", input);
+
+        assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "CNPJ deve conter 14 dígitos");
+        assertThat(usuarioRepository.count()).isZero();
+    }
+
+    @Test
     @DisplayName("deve retornar erro se e-mail já estiver cadastrado")
     void shouldFailWhenEmailAlreadyTaken() {
         // Arrange

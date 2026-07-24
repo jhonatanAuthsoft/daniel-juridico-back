@@ -4,13 +4,21 @@ import static com.laweact.e2e.support.ApiAssertions.assertErrorDetailContains;
 import static com.laweact.e2e.support.ApiAssertions.assertSuccess;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.IntStream;
+
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.laweact.dto.advogado.CadastrarAdvogadoInputDTO;
+import com.laweact.dto.advogado.EspecialidadeInputDTO;
+import com.laweact.dto.advogado.OabInputDTO;
+import com.laweact.dto.advogado.PosGraduacaoInputDTO;
 import com.laweact.e2e.support.Fixtures;
 import com.laweact.model.entity.AdvogadoEntity;
 import com.laweact.model.entity.UsuarioEntity;
@@ -23,16 +31,13 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
     @Test
     @DisplayName("deve criar advogado com sucesso (usuario + advogado + endereco + oab + area) e retornar JWT")
     void shouldCreateAdvogadoSuccessfully() {
-        // Arrange
         String email = "joao.sucesso@laweact.com";
         String cpf = "39053344705";
         String oab = "123456";
         CadastrarAdvogadoInputDTO input = Fixtures.advogadoValido(email, cpf, oab);
 
-        // Act
         ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
 
-        // Assert — HTTP
         assertSuccess(response, HttpStatus.CREATED);
         JsonNode data = response.getBody().path("data");
         assertThat(data.path("token").asText()).isNotBlank();
@@ -44,10 +49,10 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
         assertThat(data.path("oabs").get(0).path("dataExpedicao").asText()).isEqualTo("2016-03-15");
         assertThat(data.path("areasAtuacao")).hasSize(1);
         assertThat(data.path("modalidades").get(0).path("codigo").asText()).isEqualTo("GENERALISTA");
+        assertThat(data.path("especialidades").get(0).path("especialidadeCodigo").asText()).isEqualTo("CIVIL");
         assertThat(data.path("formasCobranca")).hasSize(1);
         assertThat(data.path("endereco").path("complemento").asText()).isEqualTo("Conjunto 41");
 
-        // Assert — DB
         UsuarioEntity usuarioDb = usuarioRepository.findByEmail(email).orElseThrow();
         assertThat(usuarioDb.getPerfil()).isEqualTo(PerfilUsuarioEnum.ADVOGADO);
 
@@ -71,19 +76,146 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
     }
 
     @Test
+    @DisplayName("deve cadastrar até 5 OABs suplementares, pós-graduação e especialidade")
+    void shouldCreateAdvogadoWithSuplementaresAndPosGraduacao() {
+        CadastrarAdvogadoInputDTO base = Fixtures.advogadoValido("joao.completo@laweact.com", "39053344705", "100001");
+        List<OabInputDTO> suplementares = IntStream.rangeClosed(1, 5)
+                .mapToObj(i -> Fixtures.oab("20000" + i, "RJ", LocalDate.of(2018, i, 10)))
+                .toList();
+
+        CadastrarAdvogadoInputDTO input = copyAdvogado(base)
+                .oabsSuplementares(suplementares)
+                .modalidades(List.of("CONSULTOR"))
+                .especialidades(List.of(EspecialidadeInputDTO.builder().especialidadeCodigo("TRABALHISTA").build()))
+                .formasCobranca(List.of("HONORARIOS_PERCENTUAIS", "OUTROS_A_COMBINAR"))
+                .posGraduacoes(List.of(PosGraduacaoInputDTO.builder()
+                        .nomeCurso("LLM Direito Digital")
+                        .instituicao("FGV")
+                        .anoFormacao(2020)
+                        .build()))
+                .aceiteTermos(true)
+                .build();
+
+        ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
+
+        assertSuccess(response, HttpStatus.CREATED);
+        JsonNode data = response.getBody().path("data");
+        assertThat(data.path("oabs")).hasSize(6);
+        assertThat(data.path("posGraduacoes")).hasSize(1);
+        assertThat(data.path("posGraduacoes").get(0).path("nomeCurso").asText()).isEqualTo("LLM Direito Digital");
+        assertThat(data.path("formasCobranca")).hasSize(2);
+        assertThat(data.path("especialidades").get(0).path("especialidadeCodigo").asText()).isEqualTo("TRABALHISTA");
+
+        UsuarioEntity usuarioDb = usuarioRepository.findByEmail(base.email()).orElseThrow();
+        Integer oabs = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM oabs WHERE advogado_id = ?",
+                Integer.class,
+                usuarioDb.getId()
+        );
+        assertThat(oabs).isEqualTo(6);
+    }
+
+    @Test
+    @DisplayName("deve rejeitar mais de 5 OABs suplementares")
+    void shouldFailWhenMoreThanFiveSuplementares() {
+        CadastrarAdvogadoInputDTO base = Fixtures.advogadoValido("joao.limite@laweact.com", "39053344705", "300001");
+        List<OabInputDTO> suplementares = IntStream.rangeClosed(1, 6)
+                .mapToObj(i -> Fixtures.oab("30000" + i, "MG", LocalDate.of(2019, 1, i)))
+                .toList();
+
+        CadastrarAdvogadoInputDTO input = copyAdvogado(base)
+                .oabsSuplementares(suplementares)
+                .aceiteTermos(true)
+                .build();
+
+        ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
+
+        assertThat(response.getStatusCode().is4xxClientError()).isTrue();
+        assertThat(response.getBody().path("success").asBoolean()).isFalse();
+        assertThat(usuarioRepository.count()).isZero();
+    }
+
+    @Nested
+    @DisplayName("modalidades e especialidades")
+    class Modalidades {
+
+        @Test
+        @DisplayName("deve aceitar NENHUMA_DAS_ANTERIORES com especialidade livre")
+        void shouldAcceptNenhumaComEspecialidadeLivre() {
+            CadastrarAdvogadoInputDTO base = Fixtures.advogadoValido(
+                    "joao.nenhuma@laweact.com",
+                    "39053344705",
+                    "400001"
+            );
+            CadastrarAdvogadoInputDTO input = copyAdvogado(base)
+                    .modalidades(List.of("NENHUMA_DAS_ANTERIORES"))
+                    .especialidades(List.of(EspecialidadeInputDTO.builder()
+                            .especialidadeLivre("Direito Canábico")
+                            .build()))
+                    .aceiteTermos(true)
+                    .build();
+
+            ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
+
+            assertSuccess(response, HttpStatus.CREATED);
+            JsonNode data = response.getBody().path("data");
+            assertThat(data.path("modalidades").get(0).path("codigo").asText())
+                    .isEqualTo("NENHUMA_DAS_ANTERIORES");
+            assertThat(data.path("especialidades").get(0).path("especialidadeLivre").asText())
+                    .isEqualTo("Direito Canábico");
+        }
+
+        @Test
+        @DisplayName("deve rejeitar NENHUMA_DAS_ANTERIORES misturada com outras modalidades")
+        void shouldFailWhenNenhumaMixedWithOthers() {
+            CadastrarAdvogadoInputDTO base = Fixtures.advogadoValido(
+                    "joao.misto@laweact.com",
+                    "39053344705",
+                    "400002"
+            );
+            CadastrarAdvogadoInputDTO input = copyAdvogado(base)
+                    .modalidades(List.of("GENERALISTA", "NENHUMA_DAS_ANTERIORES"))
+                    .aceiteTermos(true)
+                    .build();
+
+            ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
+
+            assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "não pode ser combinada");
+            assertThat(usuarioRepository.count()).isZero();
+        }
+
+        @Test
+        @DisplayName("deve exigir especialidade quando modalidade for NENHUMA_DAS_ANTERIORES")
+        void shouldFailNenhumaWithoutEspecialidade() {
+            CadastrarAdvogadoInputDTO base = Fixtures.advogadoValido(
+                    "joao.semesp@laweact.com",
+                    "39053344705",
+                    "400003"
+            );
+            CadastrarAdvogadoInputDTO input = copyAdvogado(base)
+                    .modalidades(List.of("NENHUMA_DAS_ANTERIORES"))
+                    .especialidades(List.of())
+                    .aceiteTermos(true)
+                    .build();
+
+            ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
+
+            assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "especialidade");
+            assertThat(usuarioRepository.count()).isZero();
+        }
+    }
+
+    @Test
     @DisplayName("deve retornar erro se e-mail já estiver cadastrado")
     void shouldFailWhenEmailAlreadyTaken() {
-        // Arrange
         String email = "joao.duplicado@laweact.com";
         api.post("/advogados/cadastrar", Fixtures.advogadoValido(email, "39053344705", "111111"));
 
-        // Act
         ResponseEntity<JsonNode> response = api.post(
                 "/advogados/cadastrar",
                 Fixtures.advogadoValido(email, "52998224725", "222222")
         );
 
-        // Assert
         assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "E-mail já cadastrado");
         assertThat(usuarioRepository.count()).isEqualTo(1);
     }
@@ -91,17 +223,14 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
     @Test
     @DisplayName("deve retornar erro se CPF já estiver cadastrado")
     void shouldFailWhenCpfAlreadyTaken() {
-        // Arrange
         String cpf = "39053344705";
         api.post("/advogados/cadastrar", Fixtures.advogadoValido("a@laweact.com", cpf, "111111"));
 
-        // Act
         ResponseEntity<JsonNode> response = api.post(
                 "/advogados/cadastrar",
                 Fixtures.advogadoValido("b@laweact.com", cpf, "222222")
         );
 
-        // Assert
         assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "CPF já cadastrado");
         assertThat(usuarioRepository.count()).isEqualTo(1);
     }
@@ -109,17 +238,14 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
     @Test
     @DisplayName("deve retornar erro se OAB já estiver cadastrada")
     void shouldFailWhenOabAlreadyTaken() {
-        // Arrange
         String oab = "123456";
         api.post("/advogados/cadastrar", Fixtures.advogadoValido("a@laweact.com", "39053344705", oab));
 
-        // Act
         ResponseEntity<JsonNode> response = api.post(
                 "/advogados/cadastrar",
                 Fixtures.advogadoValido("b@laweact.com", "52998224725", oab)
         );
 
-        // Assert
         assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "OAB já cadastrada");
         assertThat(usuarioRepository.count()).isEqualTo(1);
     }
@@ -127,47 +253,51 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
     @Test
     @DisplayName("deve retornar erro se termos não forem aceitos")
     void shouldFailWhenTermsNotAccepted() {
-        // Arrange
-        CadastrarAdvogadoInputDTO input = Fixtures.advogadoValido(
+        CadastrarAdvogadoInputDTO base = Fixtures.advogadoValido(
                 "semtermos.adv@laweact.com",
                 "39053344705",
                 "999999"
         );
-        input = CadastrarAdvogadoInputDTO.builder()
-                .nomeCompleto(input.nomeCompleto())
-                .email(input.email())
-                .senha(input.senha())
-                .rg(input.rg())
-                .rgOrgaoEmissor(input.rgOrgaoEmissor())
-                .rgUf(input.rgUf())
-                .cpf(input.cpf())
-                .nomePai(input.nomePai())
-                .nomeMae(input.nomeMae())
-                .pronomeTratamento(input.pronomeTratamento())
-                .telefone(input.telefone())
-                .universidade(input.universidade())
-                .curso(input.curso())
-                .anoFormacao(input.anoFormacao())
-                .atuacaoDesde(input.atuacaoDesde())
-                .cep(input.cep())
-                .logradouro(input.logradouro())
-                .numero(input.numero())
-                .bairro(input.bairro())
-                .cidade(input.cidade())
-                .estado(input.estado())
-                .oabPrincipal(input.oabPrincipal())
-                .areasAtuacao(input.areasAtuacao())
-                .modalidades(input.modalidades())
-                .especialidades(input.especialidades())
-                .formasCobranca(input.formasCobranca())
-                .aceiteTermos(false)
-                .build();
+        CadastrarAdvogadoInputDTO input = copyAdvogado(base).aceiteTermos(false).build();
 
-        // Act
         ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
 
-        // Assert
         assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "aceitar os termos");
         assertThat(usuarioRepository.count()).isZero();
+    }
+
+    private static CadastrarAdvogadoInputDTO.CadastrarAdvogadoInputDTOBuilder copyAdvogado(
+            CadastrarAdvogadoInputDTO base
+    ) {
+        return CadastrarAdvogadoInputDTO.builder()
+                .nomeCompleto(base.nomeCompleto())
+                .email(base.email())
+                .senha(base.senha())
+                .rg(base.rg())
+                .rgOrgaoEmissor(base.rgOrgaoEmissor())
+                .rgUf(base.rgUf())
+                .cpf(base.cpf())
+                .nomePai(base.nomePai())
+                .nomeMae(base.nomeMae())
+                .pronomeTratamento(base.pronomeTratamento())
+                .telefone(base.telefone())
+                .universidade(base.universidade())
+                .curso(base.curso())
+                .anoFormacao(base.anoFormacao())
+                .atuacaoDesde(base.atuacaoDesde())
+                .cep(base.cep())
+                .logradouro(base.logradouro())
+                .numero(base.numero())
+                .complemento(base.complemento())
+                .bairro(base.bairro())
+                .cidade(base.cidade())
+                .estado(base.estado())
+                .oabPrincipal(base.oabPrincipal())
+                .oabsSuplementares(base.oabsSuplementares())
+                .areasAtuacao(base.areasAtuacao())
+                .modalidades(base.modalidades())
+                .especialidades(base.especialidades())
+                .formasCobranca(base.formasCobranca())
+                .posGraduacoes(base.posGraduacoes());
     }
 }

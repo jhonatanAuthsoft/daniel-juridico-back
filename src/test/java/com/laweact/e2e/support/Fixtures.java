@@ -121,4 +121,12 @@ public final class Fixtures {
                 .aceiteTermos(true)
                 .build();
     }
+
+    public static OabInputDTO oab(String numero, String uf, LocalDate dataExpedicao) {
+        return OabInputDTO.builder()
+                .numero(numero)
+                .uf(uf)
+                .dataExpedicao(dataExpedicao)
+                .build();
+    }
 }

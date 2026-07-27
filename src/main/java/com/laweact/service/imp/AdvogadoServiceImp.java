@@ -133,7 +133,7 @@ public class AdvogadoServiceImp implements AdvogadoService {
                 .rgOrgaoEmissor(input.rgOrgaoEmissor().trim())
                 .rgUf(input.rgUf().trim().toUpperCase())
                 .cpf(cpf)
-                .nomePai(input.nomePai().trim())
+                .nomePai(blankToNull(input.nomePai()))
                 .nomeMae(input.nomeMae().trim())
                 .pronomeTratamento(input.pronomeTratamento())
                 .fotoUrl(blankToNull(input.fotoUrl()))

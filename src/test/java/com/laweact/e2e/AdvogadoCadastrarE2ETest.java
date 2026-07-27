@@ -202,6 +202,55 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
     }
 
     @Test
+    @DisplayName("deve aceitar cadastro sem nome do pai")
+    void shouldCreateAdvogadoWithoutNomePai() {
+        CadastrarAdvogadoInputDTO base = Fixtures.advogadoValido(
+                "joao.sempai@laweact.com",
+                "39053344705",
+                "500001"
+        );
+        CadastrarAdvogadoInputDTO input = copyAdvogado(base)
+                .nomePai(null)
+                .build();
+
+        ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
+
+        assertSuccess(response, HttpStatus.CREATED);
+        assertThat(response.getBody().path("data").path("advogado").path("nomePai").isNull()).isTrue();
+    }
+
+    @Test
+    @DisplayName("deve aceitar especialidade com subespecialidade do catálogo completo")
+    void shouldCreateAdvogadoWithSubespecialidadeFromCatalog() {
+        CadastrarAdvogadoInputDTO base = Fixtures.advogadoValido(
+                "joao.subesp@laweact.com",
+                "39053344705",
+                "500002"
+        );
+        CadastrarAdvogadoInputDTO input = copyAdvogado(base)
+                .especialidades(List.of(
+                        EspecialidadeInputDTO.builder()
+                                .especialidadeCodigo("CIVIL")
+                                .subespecialidadeCodigo("CONTRATOS")
+                                .build(),
+                        EspecialidadeInputDTO.builder()
+                                .especialidadeCodigo("IMOBILIARIO")
+                                .subespecialidadeCodigo("DESPEJO")
+                                .build()
+                ))
+                .build();
+
+        ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
+
+        assertSuccess(response, HttpStatus.CREATED);
+        JsonNode especialidades = response.getBody().path("data").path("especialidades");
+        assertThat(especialidades).hasSize(2);
+        assertThat(especialidades.get(0).path("subespecialidadeCodigo").asText()).isEqualTo("CONTRATOS");
+        assertThat(especialidades.get(1).path("especialidadeCodigo").asText()).isEqualTo("IMOBILIARIO");
+        assertThat(especialidades.get(1).path("subespecialidadeCodigo").asText()).isEqualTo("DESPEJO");
+    }
+
+    @Test
     @DisplayName("deve retornar erro se e-mail já estiver cadastrado")
     void shouldFailWhenEmailAlreadyTaken() {
         String email = "joao.duplicado@laweact.com";

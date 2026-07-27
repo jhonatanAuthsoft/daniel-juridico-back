@@ -49,7 +49,6 @@ public record CadastrarAdvogadoInputDTO(
         @NotBlank(message = "O CPF é obrigatório")
         String cpf,
 
-        @NotBlank(message = "O nome do pai é obrigatório")
         String nomePai,
 
         @NotBlank(message = "O nome da mãe é obrigatório")

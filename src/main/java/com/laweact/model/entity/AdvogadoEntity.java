@@ -64,7 +64,7 @@ public class AdvogadoEntity {
     @Column(name = "cpf", nullable = false, length = 11)
     private String cpf;
 
-    @Column(name = "nome_pai", nullable = false)
+    @Column(name = "nome_pai")
     private String nomePai;
 
     @Column(name = "nome_mae", nullable = false)

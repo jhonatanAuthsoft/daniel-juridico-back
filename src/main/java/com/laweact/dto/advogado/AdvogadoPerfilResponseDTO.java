@@ -21,7 +21,7 @@ public record AdvogadoPerfilResponseDTO(
         @NotBlank String rgOrgaoEmissor,
         @NotBlank String rgUf,
         @NotBlank String cpf,
-        @NotBlank String nomePai,
+        String nomePai,
         @NotBlank String nomeMae,
         @NotNull PronomeTratamentoEnum pronomeTratamento,
         String fotoUrl,

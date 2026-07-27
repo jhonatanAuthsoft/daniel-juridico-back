@@ -65,10 +65,20 @@ curl -s -X POST http://localhost:8080/clientes/cadastrar \
     "numero": "1000",
     "bairro": "Bela Vista",
     "cidade": "São Paulo",
-    "estado": "SP",
-    "aceiteTermos": true
+    "estado": "SP"
   }'
 ```
+
+Depois do cadastro/login (com JWT):
+
+```bash
+curl -s -X POST http://localhost:8080/usuarios/aceitar-termos \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"checkboxConfirmado": true, "scrollConfirmado": true}'
+```
+
+`usuario.termosAceitos` vem `false` no cadastro/login até esse aceite.
 
 ### Advogado — `POST /advogados/cadastrar`
 
@@ -99,9 +109,11 @@ curl -s -X POST http://localhost:8080/advogados/cadastrar \
     "bairro": "Bela Vista",
     "cidade": "São Paulo",
     "estado": "SP",
-    "oabPrincipal": { "numero": "123456", "uf": "SP" },
+    "oabPrincipal": { "numero": "123456", "uf": "SP", "dataExpedicao": "2016-03-15" },
     "areasAtuacao": [{ "estado": "SP", "cidade": "São Paulo" }],
-    "aceiteTermos": true
+    "modalidades": ["GENERALISTA"],
+    "especialidades": [{ "especialidadeCodigo": "CIVIL" }],
+    "formasCobranca": ["HONORARIOS_CONTRATUAIS"]
   }'
 ```
 
@@ -132,9 +144,10 @@ docker compose up -d db-test
 ```
 
 Cobertura:
-- `POST /clientes/cadastrar` — sucesso, e-mail/documento duplicados, validações de senha/e-mail/termos
-- `POST /advogados/cadastrar` — sucesso, e-mail/CPF/OAB duplicados, termos
+- `POST /clientes/cadastrar` — sucesso, e-mail/documento duplicados, validações de senha/e-mail, CPF/CNPJ
+- `POST /advogados/cadastrar` — sucesso, e-mail/CPF/OAB duplicados, modalidades
 - `POST /usuarios/login` — cliente/advogado, JWT em `/me`, senha/e-mail inválidos
+- `POST /usuarios/aceitar-termos` — registra aceite; `usuario.termosAceitos` no login/cadastro
 
 Cada teste limpa o banco (`TRUNCATE … CASCADE`) no `beforeEach`/`afterEach` (AAA + isolamento).
 

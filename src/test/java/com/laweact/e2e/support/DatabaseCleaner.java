@@ -27,6 +27,7 @@ public class DatabaseCleaner {
                   advogados,
                   clientes,
                   enderecos,
+                  termos_aceite,
                   tokens_revogados,
                   usuarios
                 RESTART IDENTITY CASCADE

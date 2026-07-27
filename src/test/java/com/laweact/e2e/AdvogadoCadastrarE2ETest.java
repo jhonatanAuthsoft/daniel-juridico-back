@@ -42,6 +42,7 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
         JsonNode data = response.getBody().path("data");
         assertThat(data.path("token").asText()).isNotBlank();
         assertThat(data.path("usuario").path("perfil").asText()).isEqualTo("ADVOGADO");
+        assertThat(data.path("usuario").path("termosAceitos").asBoolean()).isFalse();
         assertThat(data.path("advogado").path("cpf").asText()).isEqualTo(cpf);
         assertThat(data.path("advogado").path("statusVerificacao").asText()).isEqualTo("PENDENTE");
         assertThat(data.path("oabs")).hasSize(1);
@@ -93,7 +94,6 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
                         .instituicao("FGV")
                         .anoFormacao(2020)
                         .build()))
-                .aceiteTermos(true)
                 .build();
 
         ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
@@ -125,7 +125,6 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
 
         CadastrarAdvogadoInputDTO input = copyAdvogado(base)
                 .oabsSuplementares(suplementares)
-                .aceiteTermos(true)
                 .build();
 
         ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
@@ -152,7 +151,6 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
                     .especialidades(List.of(EspecialidadeInputDTO.builder()
                             .especialidadeLivre("Direito Canábico")
                             .build()))
-                    .aceiteTermos(true)
                     .build();
 
             ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
@@ -175,7 +173,6 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
             );
             CadastrarAdvogadoInputDTO input = copyAdvogado(base)
                     .modalidades(List.of("GENERALISTA", "NENHUMA_DAS_ANTERIORES"))
-                    .aceiteTermos(true)
                     .build();
 
             ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
@@ -195,7 +192,6 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
             CadastrarAdvogadoInputDTO input = copyAdvogado(base)
                     .modalidades(List.of("NENHUMA_DAS_ANTERIORES"))
                     .especialidades(List.of())
-                    .aceiteTermos(true)
                     .build();
 
             ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
@@ -248,22 +244,6 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
 
         assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "OAB já cadastrada");
         assertThat(usuarioRepository.count()).isEqualTo(1);
-    }
-
-    @Test
-    @DisplayName("deve retornar erro se termos não forem aceitos")
-    void shouldFailWhenTermsNotAccepted() {
-        CadastrarAdvogadoInputDTO base = Fixtures.advogadoValido(
-                "semtermos.adv@laweact.com",
-                "39053344705",
-                "999999"
-        );
-        CadastrarAdvogadoInputDTO input = copyAdvogado(base).aceiteTermos(false).build();
-
-        ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
-
-        assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "aceitar os termos");
-        assertThat(usuarioRepository.count()).isZero();
     }
 
     private static CadastrarAdvogadoInputDTO.CadastrarAdvogadoInputDTOBuilder copyAdvogado(

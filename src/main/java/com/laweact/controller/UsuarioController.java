@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.shared.ApiResponse;
 import com.laweact.dto.shared.PaginationInfo;
+import com.laweact.dto.usuario.AceitarTermosInputDTO;
+import com.laweact.dto.usuario.AceitarTermosResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
@@ -24,6 +26,7 @@ import com.laweact.dto.usuario.RedefinirSenhaInputDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
 import com.laweact.model.enums.PerfilUsuarioEnum;
 import com.laweact.model.enums.StatusUsuarioEnum;
+import com.laweact.service.TermosAceiteService;
 import com.laweact.service.UsuarioService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,6 +42,7 @@ import lombok.RequiredArgsConstructor;
 public class UsuarioController {
 
     private final UsuarioService usuarioService;
+    private final TermosAceiteService termosAceiteService;
 
     @PostMapping("/login")
     @Operation(summary = "Login", description = "Autentica o usuário e retorna JWT")
@@ -46,6 +50,18 @@ public class UsuarioController {
             @Valid @RequestBody LoginUsuarioInputDTO loginUsuarioDTO) {
         LoginUsuarioResponseDTO response = usuarioService.login(loginUsuarioDTO);
         return ResponseEntity.ok(ApiResponse.success(response, "Consulta realizada com sucesso"));
+    }
+
+    @PostMapping("/aceitar-termos")
+    @Operation(
+            summary = "Aceitar termos de uso",
+            description = "Registra o aceite dos termos para o usuário autenticado (usuário, versão e data)"
+    )
+    public ResponseEntity<ApiResponse<AceitarTermosResponseDTO>> aceitarTermos(
+            @Valid @RequestBody AceitarTermosInputDTO input
+    ) {
+        AceitarTermosResponseDTO response = termosAceiteService.aceitar(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Termos aceitos com sucesso"));
     }
 
     @PostMapping("/logout")

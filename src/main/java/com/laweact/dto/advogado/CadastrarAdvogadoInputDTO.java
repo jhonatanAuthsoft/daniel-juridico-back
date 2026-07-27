@@ -124,8 +124,5 @@ public record CadastrarAdvogadoInputDTO(
         List<String> formasCobranca,
 
         @Valid
-        List<PosGraduacaoInputDTO> posGraduacoes,
-
-        @NotNull(message = "O aceite dos termos é obrigatório")
-        Boolean aceiteTermos
+        List<PosGraduacaoInputDTO> posGraduacoes
 ) {}

@@ -7,12 +7,21 @@ import com.laweact.dto.cliente.ClienteDetalheResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
+import com.laweact.model.entity.TermosAceiteEntity;
 import com.laweact.model.entity.UsuarioEntity;
+import com.laweact.service.TermosAceiteService;
 
 @Component
 public class UsuarioMapper {
 
+    private final TermosAceiteService termosAceiteService;
+
+    public UsuarioMapper(TermosAceiteService termosAceiteService) {
+        this.termosAceiteService = termosAceiteService;
+    }
+
     public UsuarioResponseDTO toResponseDTO(UsuarioEntity usuario) {
+        var ultimoAceite = termosAceiteService.obterUltimoAceite(usuario.getId());
         return UsuarioResponseDTO.builder()
                 .id(usuario.getId())
                 .email(usuario.getEmail())
@@ -20,6 +29,9 @@ public class UsuarioMapper {
                 .nomeCompleto(usuario.getNomeCompleto())
                 .perfil(usuario.getPerfil())
                 .telefone(usuario.getTelefone())
+                .termosAceitos(ultimoAceite.isPresent())
+                .termosAceitosEm(ultimoAceite.map(TermosAceiteEntity::getAceitoEm).orElse(null))
+                .termosVersao(ultimoAceite.map(TermosAceiteEntity::getVersao).orElse(null))
                 .build();
     }
 

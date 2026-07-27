@@ -44,6 +44,7 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
         assertThat(data.path("token").asText()).isNotBlank();
         assertThat(data.path("usuario").path("email").asText()).isEqualTo(email);
         assertThat(data.path("usuario").path("perfil").asText()).isEqualTo("CLIENTE");
+        assertThat(data.path("usuario").path("termosAceitos").asBoolean()).isFalse();
         assertThat(data.path("cliente").path("numeroDocumento").asText()).isEqualTo(documento);
         assertThat(data.path("endereco").path("cidade").asText()).isEqualTo("São Paulo");
         assertThat(data.path("endereco").path("complemento").asText()).isEqualTo("Apto 12");
@@ -108,7 +109,6 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
                 .bairro("Bela Vista")
                 .cidade("São Paulo")
                 .estado("SP")
-                .aceiteTermos(true)
                 .build();
 
         ResponseEntity<JsonNode> response = api.post("/clientes/cadastrar", input);
@@ -133,7 +133,6 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
                 .bairro("Bela Vista")
                 .cidade("São Paulo")
                 .estado("SP")
-                .aceiteTermos(true)
                 .build();
 
         ResponseEntity<JsonNode> response = api.post("/clientes/cadastrar", input);
@@ -158,7 +157,6 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
                 .bairro("Bela Vista")
                 .cidade("São Paulo")
                 .estado("SP")
-                .aceiteTermos(true)
                 .build();
 
         ResponseEntity<JsonNode> response = api.post("/clientes/cadastrar", input);
@@ -296,38 +294,6 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
                     HttpStatus.UNPROCESSABLE_ENTITY,
                     "1 letra maiúscula, 1 minúscula e 1 número"
             );
-            assertThat(usuarioRepository.count()).isZero();
-        }
-
-        @Test
-        @DisplayName("deve retornar erro se termos não forem aceitos")
-        void shouldFailWhenTermsNotAccepted() {
-            // Arrange
-            CadastrarClienteInputDTO input = CadastrarClienteInputDTO.builder()
-                    .nomeCompleto("Maria Silva")
-                    .email("semtermos@laweact.com")
-                    .senha(Fixtures.VALID_PASSWORD)
-                    .profissao("Analista")
-                    .tipoDocumento(com.laweact.model.enums.TipoDocumentoEnum.CPF)
-                    .numeroDocumento("52998224725")
-                    .rg("1234567")
-                    .dataNascimento(java.time.LocalDate.of(1990, 5, 20))
-                    .pronomes(com.laweact.model.enums.PronomesEnum.ELA)
-                    .telefone("11999999999")
-                    .cep("01310-100")
-                    .logradouro("Av. Paulista")
-                    .numero("1000")
-                    .bairro("Bela Vista")
-                    .cidade("São Paulo")
-                    .estado("SP")
-                    .aceiteTermos(false)
-                    .build();
-
-            // Act
-            ResponseEntity<JsonNode> response = api.post("/clientes/cadastrar", input);
-
-            // Assert
-            assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "aceitar os termos");
             assertThat(usuarioRepository.count()).isZero();
         }
     }

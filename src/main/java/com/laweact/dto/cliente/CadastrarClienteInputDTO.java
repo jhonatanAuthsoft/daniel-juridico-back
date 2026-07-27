@@ -76,8 +76,5 @@ public record CadastrarClienteInputDTO(
 
         String fotoUrl,
         String faixaRenda,
-        String estadoCivil,
-
-        @NotNull(message = "O aceite dos termos é obrigatório")
-        Boolean aceiteTermos
+        String estadoCivil
 ) {}

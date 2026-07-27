@@ -87,10 +87,6 @@ public class AdvogadoServiceImp implements AdvogadoService {
     @Override
     @Transactional
     public CadastrarAdvogadoResponseDTO cadastrar(CadastrarAdvogadoInputDTO input) {
-        if (!Boolean.TRUE.equals(input.aceiteTermos())) {
-            throw new CustomError("É obrigatório aceitar os termos de uso", HttpStatus.BAD_REQUEST);
-        }
-
         String email = input.email().toLowerCase().trim();
         String cpf = normalizarDocumento(input.cpf());
         if (cpf.length() != 11) {

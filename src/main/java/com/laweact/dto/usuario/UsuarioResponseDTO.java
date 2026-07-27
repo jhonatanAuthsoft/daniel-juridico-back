@@ -1,5 +1,6 @@
 package com.laweact.dto.usuario;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.laweact.model.enums.PerfilUsuarioEnum;
@@ -16,5 +17,8 @@ public record UsuarioResponseDTO(
         @NotNull @NotBlank String email,
         @NotNull StatusUsuarioEnum status,
         @NotNull PerfilUsuarioEnum perfil,
-        String telefone
+        String telefone,
+        @NotNull Boolean termosAceitos,
+        LocalDateTime termosAceitosEm,
+        String termosVersao
 ) {}

@@ -38,6 +38,7 @@ class UsuarioLoginE2ETest extends BaseE2ETest {
         assertThat(data.path("token").asText()).isNotBlank();
         assertThat(data.path("usuario").path("email").asText()).isEqualTo(email);
         assertThat(data.path("usuario").path("perfil").asText()).isEqualTo("CLIENTE");
+        assertThat(data.path("usuario").path("termosAceitos").asBoolean()).isFalse();
         assertThat(data.path("cliente").path("perfil").path("tipoDocumento").asText()).isEqualTo("CPF");
         assertThat(data.path("advogado").isMissingNode() || data.path("advogado").isNull()).isTrue();
     }

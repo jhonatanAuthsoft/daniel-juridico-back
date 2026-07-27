@@ -42,10 +42,6 @@ public class ClienteServiceImp implements ClienteService {
     @Override
     @Transactional
     public CadastrarClienteResponseDTO cadastrar(CadastrarClienteInputDTO input) {
-        if (!Boolean.TRUE.equals(input.aceiteTermos())) {
-            throw new CustomError("É obrigatório aceitar os termos de uso", HttpStatus.BAD_REQUEST);
-        }
-
         validarCamposPorTipoDocumento(input);
 
         String email = input.email().toLowerCase().trim();

@@ -38,7 +38,6 @@ public final class Fixtures {
                 .bairro("Bela Vista")
                 .cidade("São Paulo")
                 .estado("SP")
-                .aceiteTermos(true)
                 .build();
     }
 
@@ -59,7 +58,6 @@ public final class Fixtures {
                 .bairro("Bela Vista")
                 .cidade("São Paulo")
                 .estado("SP")
-                .aceiteTermos(true)
                 .build();
     }
 
@@ -81,7 +79,6 @@ public final class Fixtures {
                 .bairro("Bela Vista")
                 .cidade("São Paulo")
                 .estado("SP")
-                .aceiteTermos(true)
                 .build();
     }
 
@@ -118,7 +115,6 @@ public final class Fixtures {
                 .modalidades(List.of("GENERALISTA"))
                 .especialidades(List.of(EspecialidadeInputDTO.builder().especialidadeCodigo("CIVIL").build()))
                 .formasCobranca(List.of("HONORARIOS_CONTRATUAIS"))
-                .aceiteTermos(true)
                 .build();
     }
 

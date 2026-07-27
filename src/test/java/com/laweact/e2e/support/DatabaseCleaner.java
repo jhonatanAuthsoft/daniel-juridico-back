@@ -28,6 +28,8 @@ public class DatabaseCleaner {
                   clientes,
                   enderecos,
                   termos_aceite,
+                  tokens_recuperacao_senha,
+                  auditoria_eventos,
                   tokens_revogados,
                   usuarios
                 RESTART IDENTITY CASCADE

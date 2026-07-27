@@ -125,6 +125,29 @@ curl -s -X POST http://localhost:8080/usuarios/login \
   -d '{"email":"maria@laweact.com","senha":"Secret12"}'
 ```
 
+### Recuperação de senha
+
+Código de 4 dígitos (15 min, uso único). Resposta genérica (não revela se o e-mail existe). Sem SMTP configurado, o código só aparece no log do servidor.
+
+```bash
+# 1) Solicitar código
+curl -s -X POST http://localhost:8080/usuarios/recuperar-senha \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"maria@laweact.com"}'
+
+# 2) Validar código (não consome)
+curl -s -X POST http://localhost:8080/usuarios/validar-codigo-recuperacao \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"maria@laweact.com","codigo":"1234"}'
+
+# 3) Redefinir senha
+curl -s -X POST http://localhost:8080/usuarios/redefinir-senha \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"maria@laweact.com","codigo":"1234","novaSenha":"NovaSenha1","confirmarSenha":"NovaSenha1"}'
+```
+
+Eventos ficam em `auditoria_eventos` com `evento = recuperacao_senha`.
+
 ## Testes E2E
 
 Os testes sobem a API em porta aleatória e batem nos endpoints HTTP de verdade.
@@ -148,6 +171,7 @@ Cobertura:
 - `POST /advogados/cadastrar` — sucesso, e-mail/CPF/OAB duplicados, modalidades
 - `POST /usuarios/login` — cliente/advogado, JWT em `/me`, senha/e-mail inválidos
 - `POST /usuarios/aceitar-termos` — registra aceite; `usuario.termosAceitos` no login/cadastro
+- `POST /usuarios/recuperar-senha` / `validar-codigo-recuperacao` / `redefinir-senha` — código, invalidação, login com nova senha
 
 Cada teste limpa o banco (`TRUNCATE … CASCADE`) no `beforeEach`/`afterEach` (AAA + isolamento).
 

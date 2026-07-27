@@ -1,6 +1,10 @@
 package com.laweact.config;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -9,7 +13,9 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.repository.TokenRevogadoRepository;
+import com.laweact.repository.UsuarioRepository;
 import com.laweact.service.imp.UsuarioDetailsServiceImp;
 
 import jakarta.servlet.FilterChain;
@@ -27,6 +33,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final TokenRevogadoRepository tokenRevogadoRepository;
     private final UsuarioDetailsServiceImp userDetailsServiceImp;
+    private final UsuarioRepository usuarioRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -52,6 +59,11 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 try {
+                    if (tokenInvalidadoPorResetSenha(username, jwt)) {
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token expired. Please log in again.");
+                        return;
+                    }
+
                     UserDetails userDetails = userDetailsServiceImp.loadUserByUsername(username);
                     if (jwtUtil.validateToken(jwt, userDetails)) {
                         UsernamePasswordAuthenticationToken authenticationToken =
@@ -68,5 +80,22 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         }
 
         chain.doFilter(request, response);
+    }
+
+    private boolean tokenInvalidadoPorResetSenha(String email, String jwt) {
+        return usuarioRepository.findByEmail(email)
+                .map(UsuarioEntity::getTokensInvalidosAntes)
+                .map(invalidosAntes -> {
+                    Date issuedAt = jwtUtil.extractIssuedAt(jwt);
+                    if (issuedAt == null) {
+                        return false;
+                    }
+                    LocalDateTime iat = LocalDateTime.ofInstant(
+                            Instant.ofEpochMilli(issuedAt.getTime()),
+                            ZoneId.systemDefault()
+                    );
+                    return !iat.isAfter(invalidosAntes);
+                })
+                .orElse(false);
     }
 }

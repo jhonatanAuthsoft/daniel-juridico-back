@@ -45,6 +45,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/usuarios/login",
+                                "/usuarios/recuperar-senha",
+                                "/usuarios/validar-codigo-recuperacao",
+                                "/usuarios/redefinir-senha",
                                 "/clientes/cadastrar",
                                 "/advogados/cadastrar",
                                 "/v3/api-docs/**",

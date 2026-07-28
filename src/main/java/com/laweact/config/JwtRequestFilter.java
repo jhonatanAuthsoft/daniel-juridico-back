@@ -1,10 +1,7 @@
 package com.laweact.config;
 
 import java.io.IOException;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Date;
+import java.util.UUID;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -13,9 +10,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.laweact.model.entity.UsuarioEntity;
-import com.laweact.repository.TokenRevogadoRepository;
-import com.laweact.repository.UsuarioRepository;
+import com.laweact.service.SessaoService;
 import com.laweact.service.imp.UsuarioDetailsServiceImp;
 
 import jakarta.servlet.FilterChain;
@@ -31,9 +26,8 @@ import lombok.extern.log4j.Log4j2;
 public class JwtRequestFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
-    private final TokenRevogadoRepository tokenRevogadoRepository;
     private final UsuarioDetailsServiceImp userDetailsServiceImp;
-    private final UsuarioRepository usuarioRepository;
+    private final SessaoService sessaoService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -46,10 +40,6 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
 
-            if (tokenRevogadoRepository.existsByToken(jwt)) {
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token expired. Please log in again.");
-                return;
-            }
             try {
                 username = jwtUtil.extractEmail(jwt);
             } catch (Exception e) {
@@ -62,13 +52,21 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 return;
             }
 
+            UUID sessaoId;
+            try {
+                sessaoId = jwtUtil.extractSessionId(jwt);
+            } catch (Exception e) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
+                return;
+            }
+
+            if (sessaoId == null || !sessaoService.estaAtiva(sessaoId)) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Session expired. Please log in again.");
+                return;
+            }
+
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 try {
-                    if (tokenInvalidadoPorResetSenha(username, jwt)) {
-                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token expired. Please log in again.");
-                        return;
-                    }
-
                     UserDetails userDetails = userDetailsServiceImp.loadUserByUsername(username);
                     if (jwtUtil.validateToken(jwt, userDetails)) {
                         UsernamePasswordAuthenticationToken authenticationToken =
@@ -85,22 +83,5 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         }
 
         chain.doFilter(request, response);
-    }
-
-    private boolean tokenInvalidadoPorResetSenha(String email, String jwt) {
-        return usuarioRepository.findByEmail(email)
-                .map(UsuarioEntity::getTokensInvalidosAntes)
-                .map(invalidosAntes -> {
-                    Date issuedAt = jwtUtil.extractIssuedAt(jwt);
-                    if (issuedAt == null) {
-                        return false;
-                    }
-                    LocalDateTime iat = LocalDateTime.ofInstant(
-                            Instant.ofEpochMilli(issuedAt.getTime()),
-                            ZoneId.systemDefault()
-                    );
-                    return !iat.isAfter(invalidosAntes);
-                })
-                .orElse(false);
     }
 }

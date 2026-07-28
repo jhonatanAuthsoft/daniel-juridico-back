@@ -47,6 +47,15 @@ class UsuarioRefreshTokenE2ETest extends BaseE2ETest {
         assertThat(refreshTtlMs).isGreaterThan(accessTtlMs * 100);
         assertThat(claim(token, "typ")).isEqualTo("access");
         assertThat(claim(refresh, "typ")).isEqualTo("refresh");
+        assertThat(claim(token, "sid")).isNotBlank();
+        assertThat(claim(token, "sid")).isEqualTo(claim(refresh, "sid"));
+
+        Integer sessoes = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sessoes s JOIN usuarios u ON u.id = s.usuario_id WHERE u.email = ?",
+                Integer.class,
+                email
+        );
+        assertThat(sessoes).isEqualTo(1);
     }
 
     @Test

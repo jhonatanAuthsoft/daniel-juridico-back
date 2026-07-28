@@ -59,9 +59,6 @@ public class UsuarioEntity extends BaseEntity implements UserDetails, Serializab
     @Column(name = "bloqueado_ate")
     private LocalDateTime bloqueadoAte;
 
-    @Column(name = "tokens_invalidos_antes")
-    private LocalDateTime tokensInvalidosAntes;
-
     @Override
     @JsonIgnore
     public boolean isEnabled() {

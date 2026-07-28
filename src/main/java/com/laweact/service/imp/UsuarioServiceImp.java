@@ -11,12 +11,12 @@ import com.laweact.dto.usuario.RefreshTokenInputDTO;
 import com.laweact.dto.usuario.RefreshTokenResponseDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
 import com.laweact.mapper.UsuarioMapper;
-import com.laweact.model.entity.TokenRevogadoEntity;
+import com.laweact.model.entity.SessaoEntity;
 import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.model.enums.PerfilUsuarioEnum;
 import com.laweact.model.enums.StatusUsuarioEnum;
-import com.laweact.repository.TokenRevogadoRepository;
 import com.laweact.repository.UsuarioRepository;
+import com.laweact.service.SessaoService;
 import com.laweact.service.UsuarioService;
 
 import jakarta.transaction.Transactional;
@@ -32,9 +32,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -49,7 +46,7 @@ public class UsuarioServiceImp implements UsuarioService {
     private final UsuarioMapper usuarioMapper;
     private final JwtUtil jwtUtil;
     private final UsuarioDetailsServiceImp usuarioDetailsServiceImp;
-    private final TokenRevogadoRepository tokenRevogadoRepository;
+    private final SessaoService sessaoService;
     private final ClienteServiceImp clienteServiceImp;
     private final AdvogadoServiceImp advogadoServiceImp;
 
@@ -73,8 +70,7 @@ public class UsuarioServiceImp implements UsuarioService {
         }
 
         UserDetails userDetails = usuarioDetailsServiceImp.loadUserByUsername(email);
-        String jwt = jwtUtil.generateAccessToken(userDetails);
-        String refreshToken = jwtUtil.generateRefreshToken(userDetails);
+        SessaoService.TokensSessao tokens = sessaoService.criar(usuario, userDetails, loginUsuarioDTO.deviceId());
 
         ClienteDetalheResponseDTO cliente = null;
         AdvogadoDetalheResponseDTO advogado = null;
@@ -84,7 +80,7 @@ public class UsuarioServiceImp implements UsuarioService {
             advogado = advogadoServiceImp.carregarDetalhe(usuario.getId());
         }
 
-        return usuarioMapper.toLoginResponse(usuario, cliente, advogado, jwt, refreshToken);
+        return usuarioMapper.toLoginResponse(usuario, cliente, advogado, tokens.token(), tokens.refreshToken());
     }
 
     @Override
@@ -124,10 +120,13 @@ public class UsuarioServiceImp implements UsuarioService {
             throw new CustomError("Token e refreshToken não correspondem", HttpStatus.UNAUTHORIZED);
         }
 
-        if (tokenRevogadoRepository.existsByToken(input.refreshToken())
-                || tokenRevogadoRepository.existsByToken(input.token())) {
+        UUID sessaoRefresh = jwtUtil.extractSessionId(refreshClaims);
+        UUID sessaoAccess = jwtUtil.extractSessionId(accessClaims);
+        if (sessaoRefresh == null || sessaoAccess == null || !sessaoRefresh.equals(sessaoAccess)) {
             throw new CustomError("Sessão inválida. Faça login novamente.", HttpStatus.UNAUTHORIZED);
         }
+
+        SessaoEntity sessao = sessaoService.obterAtiva(sessaoRefresh);
 
         String email = emailRefresh.toLowerCase();
         UsuarioEntity usuario = usuarioRepository.findByEmail(email)
@@ -137,35 +136,29 @@ public class UsuarioServiceImp implements UsuarioService {
             throw new CustomError("Usuário inativo", HttpStatus.UNAUTHORIZED);
         }
 
-        if (tokenInvalidadoPorResetSenha(usuario, refreshClaims.getIssuedAt())) {
+        if (!sessao.getUsuario().getId().equals(usuario.getId())) {
             throw new CustomError("Sessão inválida. Faça login novamente.", HttpStatus.UNAUTHORIZED);
         }
 
         UserDetails userDetails = usuarioDetailsServiceImp.loadUserByUsername(email);
+        SessaoService.TokensSessao tokens = sessaoService.renovar(sessao, userDetails);
         return RefreshTokenResponseDTO.builder()
-                .token(jwtUtil.generateAccessToken(userDetails))
-                .refreshToken(jwtUtil.generateRefreshToken(userDetails))
+                .token(tokens.token())
+                .refreshToken(tokens.refreshToken())
                 .build();
-    }
-
-    private boolean tokenInvalidadoPorResetSenha(UsuarioEntity usuario, Date issuedAt) {
-        if (usuario.getTokensInvalidosAntes() == null || issuedAt == null) {
-            return false;
-        }
-        LocalDateTime iat = LocalDateTime.ofInstant(
-                Instant.ofEpochMilli(issuedAt.getTime()),
-                ZoneId.systemDefault()
-        );
-        return !iat.isAfter(usuario.getTokensInvalidosAntes());
     }
 
     @Override
+    @Transactional
     public void logout(String token) {
-        TokenRevogadoEntity tokenRevogado = TokenRevogadoEntity.builder()
-                .token(token)
-                .revogadoEm(LocalDateTime.now())
-                .build();
-        tokenRevogadoRepository.save(tokenRevogado);
+        try {
+            UUID sessaoId = jwtUtil.extractSessionId(token);
+            if (sessaoId != null) {
+                sessaoService.encerrar(sessaoId);
+            }
+        } catch (Exception e) {
+            log.debug("Logout com token inválido: {}", e.getMessage());
+        }
     }
 
     @Override
@@ -195,6 +188,7 @@ public class UsuarioServiceImp implements UsuarioService {
     public void excluir(UUID id) {
         UsuarioEntity usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
+        sessaoService.encerrarTodasDoUsuario(id);
         usuarioRepository.delete(usuario);
     }
 

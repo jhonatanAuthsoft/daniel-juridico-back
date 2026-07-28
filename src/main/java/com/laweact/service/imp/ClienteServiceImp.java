@@ -5,7 +5,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.laweact.config.JwtUtil;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.cliente.CadastrarClienteInputDTO;
 import com.laweact.dto.cliente.CadastrarClienteResponseDTO;
@@ -21,6 +20,7 @@ import com.laweact.repository.ClienteRepository;
 import com.laweact.repository.EnderecoRepository;
 import com.laweact.repository.UsuarioRepository;
 import com.laweact.service.ClienteService;
+import com.laweact.service.SessaoService;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +36,7 @@ public class ClienteServiceImp implements ClienteService {
     private final EnderecoRepository enderecoRepository;
     private final PasswordEncoder passwordEncoder;
     private final UsuarioDetailsServiceImp usuarioDetailsServiceImp;
-    private final JwtUtil jwtUtil;
+    private final SessaoService sessaoService;
     private final ClienteMapper clienteMapper;
 
     @Override
@@ -106,11 +106,12 @@ public class ClienteServiceImp implements ClienteService {
         EnderecoEntity enderecoSalvo = enderecoRepository.save(endereco);
 
         UserDetails userDetails = usuarioDetailsServiceImp.loadUserByUsername(email);
-        String token = jwtUtil.generateAccessToken(userDetails);
-        String refreshToken = jwtUtil.generateRefreshToken(userDetails);
+        var tokens = sessaoService.criar(usuarioSalvo, userDetails, null);
 
         log.info("Cliente cadastrado: {}", email);
-        return clienteMapper.toCadastrarResponse(usuarioSalvo, clienteSalvo, enderecoSalvo, token, refreshToken);
+        return clienteMapper.toCadastrarResponse(
+                usuarioSalvo, clienteSalvo, enderecoSalvo, tokens.token(), tokens.refreshToken()
+        );
     }
 
     public ClienteDetalheResponseDTO carregarDetalhe(java.util.UUID usuarioId) {

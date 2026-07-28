@@ -27,17 +27,16 @@ import java.util.function.Function;
 public class JwtUtil {
 
     public static final String CLAIM_TOKEN_TYPE = "typ";
+    public static final String CLAIM_SESSION_ID = "sid";
     public static final String TYPE_ACCESS = "access";
     public static final String TYPE_REFRESH = "refresh";
 
     @Value("${jwt.secret}")
     private String secretKey;
 
-    /** Access token: 1 hora por padrão. */
     @Value("${jwt.access-token-expiration-ms:3600000}")
     private long accessTokenExpirationMs;
 
-    /** Refresh token: 7 dias por padrão. */
     @Value("${jwt.refresh-token-expiration-ms:604800000}")
     private long refreshTokenExpirationMs;
 
@@ -53,18 +52,22 @@ public class JwtUtil {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    public String extractTokenType(String token) {
-        return extractClaim(token, claims -> claims.get(CLAIM_TOKEN_TYPE, String.class));
+    public UUID extractSessionId(String token) {
+        return extractSessionId(extractAllClaimsAllowExpired(token));
+    }
+
+    public UUID extractSessionId(Claims claims) {
+        String sid = claims.get(CLAIM_SESSION_ID, String.class);
+        if (sid == null || sid.isBlank()) {
+            return null;
+        }
+        return UUID.fromString(sid);
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
+        return claimsResolver.apply(extractAllClaims(token));
     }
 
-    /**
-     * Extrai claims mesmo se o JWT estiver expirado (útil no refresh do access token).
-     */
     public Claims extractAllClaimsAllowExpired(String token) {
         try {
             return extractAllClaims(token);
@@ -104,17 +107,12 @@ public class JwtUtil {
         }
     }
 
-    public String generateAccessToken(UserDetails userDetails) {
-        return createToken(buildRoleClaims(userDetails), userDetails.getUsername(), TYPE_ACCESS, accessTokenExpirationMs);
+    public String generateAccessToken(UserDetails userDetails, UUID sessaoId) {
+        return createToken(buildRoleClaims(userDetails), userDetails.getUsername(), TYPE_ACCESS, accessTokenExpirationMs, sessaoId);
     }
 
-    public String generateRefreshToken(UserDetails userDetails) {
-        return createToken(buildRoleClaims(userDetails), userDetails.getUsername(), TYPE_REFRESH, refreshTokenExpirationMs);
-    }
-
-    /** @deprecated use {@link #generateAccessToken(UserDetails)} */
-    public String generateToken(UserDetails userDetails) {
-        return generateAccessToken(userDetails);
+    public String generateRefreshToken(UserDetails userDetails, UUID sessaoId) {
+        return createToken(buildRoleClaims(userDetails), userDetails.getUsername(), TYPE_REFRESH, refreshTokenExpirationMs, sessaoId);
     }
 
     private Map<String, Object> buildRoleClaims(UserDetails userDetails) {
@@ -128,9 +126,16 @@ public class JwtUtil {
         return claims;
     }
 
-    private String createToken(Map<String, Object> claims, String subject, String tokenType, long expirationMs) {
+    private String createToken(
+            Map<String, Object> claims,
+            String subject,
+            String tokenType,
+            long expirationMs,
+            UUID sessaoId
+    ) {
         Map<String, Object> allClaims = new HashMap<>(claims);
         allClaims.put(CLAIM_TOKEN_TYPE, tokenType);
+        allClaims.put(CLAIM_SESSION_ID, sessaoId.toString());
         allClaims.put("jti", UUID.randomUUID().toString());
         long now = System.currentTimeMillis();
         return Jwts.builder()
@@ -155,17 +160,6 @@ public class JwtUtil {
 
     public long getRefreshTokenExpirationMs() {
         return refreshTokenExpirationMs;
-    }
-
-    public static String getEmailFromJwtToken(String token, String jwtSecret) {
-        byte[] keyBytes = Base64.getDecoder().decode(jwtSecret);
-        Key key = Keys.hmacShaKeyFor(keyBytes);
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        return claims.getSubject();
     }
 
     public static String getLoggedUserEmail() {

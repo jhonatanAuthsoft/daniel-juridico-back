@@ -7,10 +7,12 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import com.laweact.service.EmailService;
 
+import jakarta.mail.internet.MimeMessage;
 import lombok.extern.log4j.Log4j2;
 
 @Service
@@ -42,30 +44,55 @@ public class EmailServiceImp implements EmailService {
         if (capturarCodigos) {
             capturarSeCodigoRecuperacao(destinatario, corpo);
         }
+        enviarComRetry(destinatario, assunto, null, corpo);
+    }
 
+    @Override
+    public void enviarHtml(String destinatario, String assunto, String html, String textoAlternativo) {
+        if (capturarCodigos) {
+            capturarSeCodigoRecuperacao(destinatario, textoAlternativo != null ? textoAlternativo : html);
+        }
+        enviarComRetry(destinatario, assunto, html, textoAlternativo);
+    }
+
+    private void enviarComRetry(String destinatario, String assunto, String html, String texto) {
         RuntimeException ultimoErro = null;
         for (int tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa++) {
             try {
                 if (!smtpHabilitado) {
                     log.info(
-                            "[email-mock] to={} subject={} body={}",
+                            "[email-mock] to={} subject={} html={} body={}",
                             destinatario,
                             assunto,
-                            corpo
+                            html != null,
+                            texto
                     );
                     return;
                 }
 
-                SimpleMailMessage message = new SimpleMailMessage();
-                message.setFrom(from);
-                message.setTo(destinatario);
-                message.setSubject(assunto);
-                message.setText(corpo);
-                mailSender.send(message);
+                if (html != null) {
+                    MimeMessage message = mailSender.createMimeMessage();
+                    MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+                    helper.setFrom(from);
+                    helper.setTo(destinatario);
+                    helper.setSubject(assunto);
+                    helper.setText(texto != null ? texto : "", html);
+                    mailSender.send(message);
+                } else {
+                    SimpleMailMessage message = new SimpleMailMessage();
+                    message.setFrom(from);
+                    message.setTo(destinatario);
+                    message.setSubject(assunto);
+                    message.setText(texto);
+                    mailSender.send(message);
+                }
+
                 log.info("E-mail enviado para {} (tentativa {})", destinatario, tentativa);
                 return;
-            } catch (RuntimeException ex) {
-                ultimoErro = ex;
+            } catch (RuntimeException | jakarta.mail.MessagingException ex) {
+                ultimoErro = ex instanceof RuntimeException runtime
+                        ? runtime
+                        : new IllegalStateException(ex);
                 log.warn(
                         "Falha ao enviar e-mail para {} (tentativa {}/{}): {}",
                         destinatario,

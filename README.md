@@ -21,13 +21,15 @@ com.laweact/
 - Java 21+
 - Docker / Docker Compose
 
-## Subir o banco (Postgres)
+## Subir o banco + Mailpit
 
 ```bash
-docker compose up -d
+docker compose up -d db mailpit
 ```
 
-Credenciais: `laweact` / `laweact` — database `laweact` em `localhost:5432`.
+- Postgres: `laweact` / `laweact` em `localhost:5432`
+- Mailpit SMTP: `localhost:1025`
+- Mailpit UI (e-mails capturados): http://localhost:8025
 
 ## Rodar a API
 
@@ -37,6 +39,7 @@ Credenciais: `laweact` / `laweact` — database `laweact` em `localhost:5432`.
 
 - Swagger UI: http://localhost:8080/swagger-ui.html
 - Health: http://localhost:8080/actuator/health
+- E-mails de recuperação: http://localhost:8025
 
 ## Cadastro (escopo DER)
 
@@ -127,7 +130,7 @@ curl -s -X POST http://localhost:8080/usuarios/login \
 
 ### Recuperação de senha
 
-Código de 4 dígitos (15 min, uso único). Resposta genérica (não revela se o e-mail existe). Sem SMTP configurado, o código só aparece no log do servidor.
+Código de 4 dígitos (15 min, uso único). Resposta genérica (não revela se o e-mail existe). Com Mailpit local, o e-mail aparece em http://localhost:8025.
 
 ```bash
 # 1) Solicitar código

@@ -18,6 +18,7 @@ import com.laweact.dto.usuario.SolicitarRecuperacaoSenhaInputDTO;
 import com.laweact.dto.usuario.SolicitarRecuperacaoSenhaResponseDTO;
 import com.laweact.dto.usuario.ValidarCodigoRecuperacaoInputDTO;
 import com.laweact.dto.usuario.ValidarCodigoRecuperacaoResponseDTO;
+import com.laweact.email.EmailTemplates;
 import com.laweact.model.entity.TokenRecuperacaoSenhaEntity;
 import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.model.enums.StatusUsuarioEnum;
@@ -109,15 +110,11 @@ public class RecuperacaoSenhaServiceImp implements RecuperacaoSenhaService {
         boolean emailEnviado = true;
         String erroEmail = null;
         try {
-            emailService.enviarTexto(
+            emailService.enviarHtml(
                     email,
-                    "Laweact — código de recuperação de senha",
-                    """
-                    Seu código de recuperação de senha é: %s
-
-                    Ele expira em %d minutos e só pode ser usado uma vez.
-                    Se você não solicitou esta recuperação, ignore este e-mail.
-                    """.formatted(codigo, EXPIRACAO_MINUTOS)
+                    "Laweact — recuperação de senha",
+                    EmailTemplates.recuperacaoSenhaHtml(codigo),
+                    EmailTemplates.recuperacaoSenhaTexto(codigo)
             );
         } catch (Exception ex) {
             emailEnviado = false;

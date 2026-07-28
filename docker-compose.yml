@@ -2,7 +2,7 @@
 # LAWEACT SERVER - Docker Compose para Desenvolvimento Local
 # =====================================================================================
 # Uso:
-#   - Só DB local:     docker compose up -d db
+#   - DB + Mailpit:    docker compose up -d db mailpit
 #   - DB de testes:    docker compose up -d db-test
 #   - App + DB:        docker compose --profile app up -d
 #   - Parar:           docker compose down
@@ -57,6 +57,19 @@ services:
       retries: 10
 
   # =====================================================================================
+  # Mailpit — SMTP local (captura e-mails; UI em :8025)
+  # =====================================================================================
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: laweact-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - laweact-network
+
+  # =====================================================================================
   # Spring Boot Application
   # =====================================================================================
   app:
@@ -68,6 +81,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     ports:
       - "8080:8080"
     environment:
@@ -76,6 +91,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: laweact
       JWT_SECRET: ${JWT_SECRET:-4EzTRvc+xQKNaYxc5yor+2BfmGWdQRLbAgX/NsVkuhO+A9Hmuo7vCRPL0TOMIyhTmZi7hx+Y/9XwFV+hcZ8IjQ==}
       SPRING_PROFILES_ACTIVE: local
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: 1025
     networks:
       - laweact-network
     profiles:

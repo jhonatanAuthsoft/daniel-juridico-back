@@ -174,7 +174,9 @@ Cobertura:
 - `POST /advogados/cadastrar` — sucesso, e-mail/CPF/OAB duplicados, modalidades
 - `POST /usuarios/login` — cliente/advogado, JWT em `/me`, senha/e-mail inválidos
 - `POST /usuarios/aceitar-termos` — registra aceite; `usuario.termosAceitos` no login/cadastro
-- `POST /usuarios/recuperar-senha` / `validar-codigo-recuperacao` / `redefinir-senha` — código, invalidação, login com nova senha
+- `POST /usuarios/recuperar-senha` — genérico (inexistente/inativo), envio, cooldown, invalidação de código anterior
+- `POST /usuarios/validar-codigo-recuperacao` — válido (sem consumir), inválido, expirado, formato
+- `POST /usuarios/redefinir-senha` — sucesso + invalidação de JWT, uso único, expirado, confirmação/senha fraca
 
 Cada teste limpa o banco (`TRUNCATE … CASCADE`) no `beforeEach`/`afterEach` (AAA + isolamento).
 

@@ -62,7 +62,8 @@ public class ClienteMapper {
             UsuarioEntity usuario,
             ClienteEntity cliente,
             EnderecoEntity endereco,
-            String token
+            String token,
+            String refreshToken
     ) {
         UsuarioResponseDTO usuarioResponse = usuarioMapper.toResponseDTO(usuario);
         return CadastrarClienteResponseDTO.builder()
@@ -70,6 +71,7 @@ public class ClienteMapper {
                 .cliente(toPerfilResponse(cliente))
                 .endereco(toEnderecoResponse(endereco))
                 .token(token)
+                .refreshToken(refreshToken)
                 .build();
     }
 }

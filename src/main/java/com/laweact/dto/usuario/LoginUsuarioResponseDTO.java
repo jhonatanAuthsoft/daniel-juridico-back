@@ -13,5 +13,6 @@ public record LoginUsuarioResponseDTO(
         @Valid @NotNull UsuarioResponseDTO usuario,
         ClienteDetalheResponseDTO cliente,
         AdvogadoDetalheResponseDTO advogado,
-        @NotNull @NotBlank String token
+        @NotNull @NotBlank String token,
+        @NotNull @NotBlank String refreshToken
 ) {}

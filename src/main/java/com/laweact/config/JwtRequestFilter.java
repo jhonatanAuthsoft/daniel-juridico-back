@@ -57,6 +57,11 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 return;
             }
 
+            if (jwtUtil.isRefreshToken(jwt)) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
+                return;
+            }
+
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 try {
                     if (tokenInvalidadoPorResetSenha(username, jwt)) {

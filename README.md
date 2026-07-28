@@ -128,6 +128,20 @@ curl -s -X POST http://localhost:8080/usuarios/login \
   -d '{"email":"maria@laweact.com","senha":"Secret12"}'
 ```
 
+Retorna `token` (access, 1h) e `refreshToken` (7d).
+
+### Refresh token
+
+Quando o access estiver perto de expirar (&lt; 2 min no front), chame:
+
+```bash
+curl -s -X POST http://localhost:8080/usuarios/refresh \
+  -H 'Content-Type: application/json' \
+  -d '{"token":"<access>","refreshToken":"<refresh>"}'
+```
+
+Retorna um novo par `token` + `refreshToken`.
+
 ### Recuperação de senha
 
 Código de 4 dígitos (15 min, uso único). Resposta genérica (não revela se o e-mail existe). Com Mailpit local, o e-mail aparece em http://localhost:8025.
@@ -172,7 +186,8 @@ docker compose up -d db-test
 Cobertura:
 - `POST /clientes/cadastrar` — sucesso, e-mail/documento duplicados, validações de senha/e-mail, CPF/CNPJ
 - `POST /advogados/cadastrar` — sucesso, e-mail/CPF/OAB duplicados, modalidades
-- `POST /usuarios/login` — cliente/advogado, JWT em `/me`, senha/e-mail inválidos
+- `POST /usuarios/login` — cliente/advogado, JWT + refreshToken, senha/e-mail inválidos
+- `POST /usuarios/refresh` — renova access (1h) + refresh (7d); rejeita refresh inválido / subjects divergentes
 - `POST /usuarios/aceitar-termos` — registra aceite; `usuario.termosAceitos` no login/cadastro
 - `POST /usuarios/recuperar-senha` — genérico (inexistente/inativo), envio, cooldown, invalidação de código anterior
 - `POST /usuarios/validar-codigo-recuperacao` — válido (sem consumir), inválido, expirado, formato

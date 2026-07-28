@@ -106,10 +106,11 @@ public class ClienteServiceImp implements ClienteService {
         EnderecoEntity enderecoSalvo = enderecoRepository.save(endereco);
 
         UserDetails userDetails = usuarioDetailsServiceImp.loadUserByUsername(email);
-        String token = jwtUtil.generateToken(userDetails);
+        String token = jwtUtil.generateAccessToken(userDetails);
+        String refreshToken = jwtUtil.generateRefreshToken(userDetails);
 
         log.info("Cliente cadastrado: {}", email);
-        return clienteMapper.toCadastrarResponse(usuarioSalvo, clienteSalvo, enderecoSalvo, token);
+        return clienteMapper.toCadastrarResponse(usuarioSalvo, clienteSalvo, enderecoSalvo, token, refreshToken);
     }
 
     public ClienteDetalheResponseDTO carregarDetalhe(java.util.UUID usuarioId) {

@@ -325,7 +325,7 @@ class RecuperacaoSenhaE2ETest extends BaseE2ETest {
                     "/usuarios/login",
                     LoginUsuarioInputDTO.builder().email(email).senha(Fixtures.VALID_PASSWORD).build()
             );
-            assertErrorDetailContains(loginAntigo, HttpStatus.BAD_REQUEST, "E-mail ou senha inválidos");
+            assertErrorDetailContains(loginAntigo, HttpStatus.BAD_REQUEST, "Usuário ou senha inválidos");
 
             ResponseEntity<JsonNode> loginNovo = api.post(
                     "/usuarios/login",

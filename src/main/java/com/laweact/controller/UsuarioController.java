@@ -24,6 +24,8 @@ import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
 import com.laweact.dto.usuario.RedefinirSenhaInputDTO;
 import com.laweact.dto.usuario.RedefinirSenhaResponseDTO;
+import com.laweact.dto.usuario.RefreshTokenInputDTO;
+import com.laweact.dto.usuario.RefreshTokenResponseDTO;
 import com.laweact.dto.usuario.SolicitarRecuperacaoSenhaInputDTO;
 import com.laweact.dto.usuario.SolicitarRecuperacaoSenhaResponseDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
@@ -52,11 +54,23 @@ public class UsuarioController {
     private final RecuperacaoSenhaService recuperacaoSenhaService;
 
     @PostMapping("/login")
-    @Operation(summary = "Login", description = "Autentica o usuário e retorna JWT")
+    @Operation(summary = "Login", description = "Autentica o usuário e retorna access token (1h) + refresh token (7d)")
     public ResponseEntity<ApiResponse<LoginUsuarioResponseDTO>> login(
             @Valid @RequestBody LoginUsuarioInputDTO loginUsuarioDTO) {
         LoginUsuarioResponseDTO response = usuarioService.login(loginUsuarioDTO);
         return ResponseEntity.ok(ApiResponse.success(response, "Consulta realizada com sucesso"));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(
+            summary = "Refresh token",
+            description = "Recebe access token + refresh token e devolve um novo par (access 1h, refresh 7d)"
+    )
+    public ResponseEntity<ApiResponse<RefreshTokenResponseDTO>> refresh(
+            @Valid @RequestBody RefreshTokenInputDTO input
+    ) {
+        RefreshTokenResponseDTO response = usuarioService.refresh(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Token atualizado com sucesso"));
     }
 
     @PostMapping("/recuperar-senha")

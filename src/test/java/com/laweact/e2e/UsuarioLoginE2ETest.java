@@ -146,7 +146,7 @@ class UsuarioLoginE2ETest extends BaseE2ETest {
         );
 
         // Assert
-        assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "E-mail ou senha inválidos");
+        assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "Usuário ou senha inválidos");
     }
 
     @Test
@@ -162,7 +162,7 @@ class UsuarioLoginE2ETest extends BaseE2ETest {
         ResponseEntity<JsonNode> response = api.post("/usuarios/login", login);
 
         // Assert
-        assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "E-mail ou senha inválidos");
+        assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "Usuário ou senha inválidos");
     }
 
     @Test

@@ -183,7 +183,8 @@ public class AdvogadoServiceImp implements AdvogadoService {
         List<PosGraduacaoAdvogadoEntity> posGraduacoesSalvas = salvarPosGraduacoes(advogadoSalvo, input.posGraduacoes());
 
         UserDetails userDetails = usuarioDetailsServiceImp.loadUserByUsername(email);
-        String token = jwtUtil.generateToken(userDetails);
+        String token = jwtUtil.generateAccessToken(userDetails);
+        String refreshToken = jwtUtil.generateRefreshToken(userDetails);
 
         log.info("Advogado cadastrado: {}", email);
         return advogadoMapper.toCadastrarResponse(
@@ -196,7 +197,8 @@ public class AdvogadoServiceImp implements AdvogadoService {
                 especialidadesSalvas,
                 cobrancasSalvas,
                 posGraduacoesSalvas,
-                token
+                token,
+                refreshToken
         );
     }
 

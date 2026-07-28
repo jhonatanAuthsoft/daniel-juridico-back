@@ -6,12 +6,16 @@ import java.util.UUID;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
+import com.laweact.dto.usuario.RefreshTokenInputDTO;
+import com.laweact.dto.usuario.RefreshTokenResponseDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
 import com.laweact.model.enums.PerfilUsuarioEnum;
 import com.laweact.model.enums.StatusUsuarioEnum;
 
 public interface UsuarioService {
     LoginUsuarioResponseDTO login(LoginUsuarioInputDTO loginUsuarioDTO);
+
+    RefreshTokenResponseDTO refresh(RefreshTokenInputDTO input);
 
     void logout(String token);
 

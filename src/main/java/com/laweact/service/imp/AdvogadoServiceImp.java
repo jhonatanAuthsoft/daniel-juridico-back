@@ -423,11 +423,24 @@ public class AdvogadoServiceImp implements AdvogadoService {
                 .uf(input.uf().trim().toUpperCase())
                 .dataExpedicao(input.dataExpedicao())
                 .principal(principal)
-                .fotoFrenteUrl(blankToNull(input.fotoFrenteUrl()))
-                .fotoVersoUrl(blankToNull(input.fotoVersoUrl()))
+                .fotosUrls(normalizarFotosUrls(input.fotosUrls()))
                 .statusValidacao(StatusVerificacaoEnum.PENDENTE)
                 .build();
         return oabRepository.save(oab);
+    }
+
+    private List<String> normalizarFotosUrls(List<String> fotosUrls) {
+        if (fotosUrls == null || fotosUrls.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<String> normalizadas = new ArrayList<>();
+        for (String url : fotosUrls) {
+            String value = blankToNull(url);
+            if (value != null) {
+                normalizadas.add(value);
+            }
+        }
+        return normalizadas;
     }
 
     private String normalizarDocumento(String documento) {

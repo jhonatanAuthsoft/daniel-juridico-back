@@ -66,8 +66,7 @@ public class AdvogadoMapper {
                 .uf(oab.getUf())
                 .dataExpedicao(oab.getDataExpedicao())
                 .principal(oab.getPrincipal())
-                .fotoFrenteUrl(oab.getFotoFrenteUrl())
-                .fotoVersoUrl(oab.getFotoVersoUrl())
+                .fotosUrls(oab.getFotosUrls() == null ? List.of() : List.copyOf(oab.getFotosUrls()))
                 .statusValidacao(oab.getStatusValidacao())
                 .build();
     }

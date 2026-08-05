@@ -13,6 +13,9 @@ import com.laweact.config.exception.CustomError;
 import com.laweact.dto.shared.ApiError;
 import com.laweact.dto.shared.ApiResponse;
 
+import lombok.extern.log4j.Log4j2;
+
+@Log4j2
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -68,6 +71,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
+        log.error("Erro não tratado", ex);
+
         ApiError error = ApiError.builder()
                 .code("INTERNAL_ERROR")
                 .detail("Erro inesperado")
@@ -77,4 +82,3 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 }
-

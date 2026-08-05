@@ -1,16 +1,27 @@
 package com.laweact.service.imp;
 
+import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.laweact.config.exception.CustomError;
+import com.laweact.dto.shared.PaginationInfo;
 import com.laweact.dto.solicitacao.CriarSolicitacaoInputDTO;
 import com.laweact.dto.solicitacao.CriarSolicitacaoResponseDTO;
+import com.laweact.dto.solicitacao.SolicitacaoListagemItemDTO;
+import com.laweact.dto.solicitacao.SolicitacaoListagemResponseDTO;
 import com.laweact.dto.solicitacao.SolicitacaoMatchResponseDTO;
 import com.laweact.model.entity.AdvogadoEntity;
 import com.laweact.model.entity.ClienteEntity;
@@ -30,7 +41,6 @@ import com.laweact.repository.UsuarioRepository;
 import com.laweact.service.MatchingService;
 import com.laweact.service.SolicitacaoService;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
@@ -38,6 +48,11 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2
 @RequiredArgsConstructor
 public class SolicitacaoServiceImp implements SolicitacaoService {
+
+    private static final EnumSet<StatusSolicitacaoEnum> STATUS_NAO_CANCELAVEIS = EnumSet.of(
+            StatusSolicitacaoEnum.CANCELADA,
+            StatusSolicitacaoEnum.ENCERRADA
+    );
 
     private final SolicitacaoRepository solicitacaoRepository;
     private final SolicitacaoMatchRepository solicitacaoMatchRepository;
@@ -98,19 +113,126 @@ public class SolicitacaoServiceImp implements SolicitacaoService {
 
     @Override
     @Transactional
-    public List<SolicitacaoMatchResponseDTO> listarMatches(UUID solicitacaoId) {
-        UsuarioEntity usuario = obterUsuarioAutenticado();
-        SolicitacaoEntity solicitacao = solicitacaoRepository.findById(solicitacaoId)
-                .orElseThrow(() -> new CustomError("Solicitação não encontrada", HttpStatus.NOT_FOUND));
+    public CriarSolicitacaoResponseDTO buscarDoClienteAutenticado(UUID solicitacaoId) {
+        SolicitacaoEntity solicitacao = obterSolicitacaoDoClienteAutenticado(solicitacaoId);
+        long totalMatches = solicitacaoMatchRepository.countBySolicitacao_Id(solicitacao.getId());
+        return toResponse(solicitacao, (int) totalMatches);
+    }
 
-        if (!solicitacao.getCliente().getUsuarioId().equals(usuario.getId())) {
-            throw new CustomError("Solicitação de outro cliente", HttpStatus.FORBIDDEN, "FORBIDDEN");
+    @Override
+    @Transactional
+    public CriarSolicitacaoResponseDTO cancelarDoClienteAutenticado(UUID solicitacaoId) {
+        UsuarioEntity usuario = obterUsuarioAutenticado();
+        if (usuario.getPerfil() != PerfilUsuarioEnum.CLIENTE) {
+            throw new CustomError("Apenas clientes podem cancelar solicitações", HttpStatus.FORBIDDEN, "FORBIDDEN");
         }
+
+        SolicitacaoEntity solicitacao = obterSolicitacaoDoClienteAutenticado(solicitacaoId);
+        if (STATUS_NAO_CANCELAVEIS.contains(solicitacao.getStatus())) {
+            throw new CustomError(
+                    "Solicitação não pode ser cancelada no status atual",
+                    HttpStatus.CONFLICT,
+                    "INVALID_STATUS"
+            );
+        }
+
+        solicitacao.setStatus(StatusSolicitacaoEnum.CANCELADA);
+        SolicitacaoEntity salva = solicitacaoRepository.save(solicitacao);
+        long totalMatches = solicitacaoMatchRepository.countBySolicitacao_Id(salva.getId());
+
+        log.info("Solicitação {} cancelada pelo cliente {}", salva.getId(), usuario.getEmail());
+        return toResponse(salva, (int) totalMatches);
+    }
+
+    @Override
+    @Transactional
+    public List<SolicitacaoMatchResponseDTO> listarMatches(UUID solicitacaoId) {
+        obterSolicitacaoDoClienteAutenticado(solicitacaoId);
 
         return solicitacaoMatchRepository.findRankingBySolicitacaoId(solicitacaoId)
                 .stream()
                 .map(this::toMatchResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ListagemPaginada listarDoClienteAutenticado(int limit, int offset, StatusSolicitacaoEnum status) {
+        UsuarioEntity usuario = obterUsuarioAutenticado();
+        if (usuario.getPerfil() != PerfilUsuarioEnum.CLIENTE) {
+            throw new CustomError("Apenas clientes podem listar solicitações", HttpStatus.FORBIDDEN, "FORBIDDEN");
+        }
+
+        int pageSize = limit > 0 ? limit : 10;
+        int pageIndex = Math.max(offset, 0) / pageSize;
+        PageRequest pageable = PageRequest.of(pageIndex, pageSize);
+
+        Page<SolicitacaoEntity> page = status == null
+                ? solicitacaoRepository.findByCliente_UsuarioIdOrderByCreatedAtDesc(usuario.getId(), pageable)
+                : solicitacaoRepository.findByCliente_UsuarioIdAndStatusOrderByCreatedAtDesc(
+                        usuario.getId(),
+                        status,
+                        pageable
+                );
+
+        List<SolicitacaoEntity> solicitacoes = page.getContent();
+        Map<UUID, Long> matchesPorSolicitacao = contarMatches(solicitacoes);
+        Map<String, String> nomesEspecialidade = carregarNomesEspecialidade(solicitacoes);
+
+        List<SolicitacaoListagemItemDTO> items = solicitacoes.stream()
+                .map(s -> SolicitacaoListagemItemDTO.builder()
+                        .id(s.getId())
+                        .status(s.getStatus())
+                        .urgencia(s.getUrgencia())
+                        .titulo(s.getTitulo())
+                        .descricao(s.getDescricao())
+                        .dataAbertura(s.getCreatedAt())
+                        .especialidadeCodigo(s.getEspecialidadeCodigo())
+                        .especialidade(nomesEspecialidade.getOrDefault(
+                                s.getEspecialidadeCodigo(),
+                                s.getEspecialidadeCodigo()
+                        ))
+                        .totalMatches(matchesPorSolicitacao.getOrDefault(s.getId(), 0L).intValue())
+                        .build())
+                .toList();
+
+        SolicitacaoListagemResponseDTO data = SolicitacaoListagemResponseDTO.builder()
+                .items(items)
+                .contagemPorStatus(carregarContagemPorStatus(usuario.getId()))
+                .build();
+
+        return new ListagemPaginada(data, PaginationInfo.of(pageSize, pageIndex * pageSize, page.getTotalElements()));
+    }
+
+    private Map<StatusSolicitacaoEnum, Long> carregarContagemPorStatus(UUID usuarioId) {
+        Map<StatusSolicitacaoEnum, Long> contagem = SolicitacaoListagemResponseDTO.contagemVazia();
+        for (Object[] row : solicitacaoRepository.countGroupedByStatusForCliente(usuarioId)) {
+            contagem.put((StatusSolicitacaoEnum) row[0], (Long) row[1]);
+        }
+        return contagem;
+    }
+
+    private Map<UUID, Long> contarMatches(List<SolicitacaoEntity> solicitacoes) {
+        if (solicitacoes.isEmpty()) {
+            return Map.of();
+        }
+        List<UUID> ids = solicitacoes.stream().map(SolicitacaoEntity::getId).toList();
+        Map<UUID, Long> resultado = new HashMap<>();
+        for (Object[] row : solicitacaoMatchRepository.countGroupedBySolicitacaoIds(ids)) {
+            resultado.put((UUID) row[0], (Long) row[1]);
+        }
+        return resultado;
+    }
+
+    private Map<String, String> carregarNomesEspecialidade(List<SolicitacaoEntity> solicitacoes) {
+        Set<String> codigos = solicitacoes.stream()
+                .map(SolicitacaoEntity::getEspecialidadeCodigo)
+                .collect(Collectors.toSet());
+        if (codigos.isEmpty()) {
+            return Map.of();
+        }
+        return especialidadeRepository.findByCodigoIn(codigos).stream()
+                .collect(Collectors.toMap(EspecialidadeEntity::getCodigo, EspecialidadeEntity::getNome));
     }
 
     private SolicitacaoMatchResponseDTO toMatchResponse(SolicitacaoMatchEntity match) {
@@ -144,6 +266,18 @@ public class SolicitacaoServiceImp implements SolicitacaoService {
         }
         return usuarioRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
+    }
+
+    private SolicitacaoEntity obterSolicitacaoDoClienteAutenticado(UUID solicitacaoId) {
+        UsuarioEntity usuario = obterUsuarioAutenticado();
+        SolicitacaoEntity solicitacao = solicitacaoRepository.findById(solicitacaoId)
+                .orElseThrow(() -> new CustomError("Solicitação não encontrada", HttpStatus.NOT_FOUND));
+
+        if (!solicitacao.getCliente().getUsuarioId().equals(usuario.getId())) {
+            throw new CustomError("Solicitação de outro cliente", HttpStatus.FORBIDDEN, "FORBIDDEN");
+        }
+
+        return solicitacao;
     }
 
     private CriarSolicitacaoResponseDTO toResponse(SolicitacaoEntity entity, int totalMatches) {

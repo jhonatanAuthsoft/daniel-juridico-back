@@ -118,6 +118,49 @@ public final class Fixtures {
                 .build();
     }
 
+    /** Advogado com nome, localidade de atuação e modalidades controlados (cenários de matching). */
+    public static CadastrarAdvogadoInputDTO advogadoParaMatching(
+            String nome,
+            String email,
+            String cpf,
+            String oabNumero,
+            String uf,
+            String cidade,
+            List<String> modalidades
+    ) {
+        return CadastrarAdvogadoInputDTO.builder()
+                .nomeCompleto(nome)
+                .email(email)
+                .senha(VALID_PASSWORD)
+                .rg("7654321")
+                .rgOrgaoEmissor("SSP")
+                .rgUf(uf)
+                .cpf(cpf)
+                .nomeMae("Ana Advogada")
+                .pronomeTratamento(PronomeTratamentoEnum.DOUTOR)
+                .telefone("11988887777")
+                .universidade("USP")
+                .curso("Direito")
+                .anoFormacao(2015)
+                .atuacaoDesde(LocalDate.of(2016, 1, 10))
+                .cep("01310-100")
+                .logradouro("Av. Paulista")
+                .numero("1500")
+                .bairro("Bela Vista")
+                .cidade(cidade)
+                .estado(uf)
+                .oabPrincipal(OabInputDTO.builder()
+                        .numero(oabNumero)
+                        .uf(uf)
+                        .dataExpedicao(LocalDate.of(2016, 3, 15))
+                        .build())
+                .areasAtuacao(List.of(AreaAtuacaoInputDTO.builder().estado(uf).cidade(cidade).build()))
+                .modalidades(modalidades)
+                .especialidades(List.of(EspecialidadeInputDTO.builder().especialidadeCodigo("CIVIL").build()))
+                .formasCobranca(List.of("HONORARIOS_CONTRATUAIS"))
+                .build();
+    }
+
     public static OabInputDTO oab(String numero, String uf, LocalDate dataExpedicao) {
         return OabInputDTO.builder()
                 .numero(numero)

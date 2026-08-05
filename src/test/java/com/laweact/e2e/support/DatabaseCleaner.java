@@ -18,11 +18,14 @@ public class DatabaseCleaner {
     public void clear() {
         jdbcTemplate.execute("""
                 TRUNCATE TABLE
+                  solicitacao_matches,
+                  solicitacoes,
                   advogado_especialidades,
                   advogado_formas_cobranca,
                   advogado_modalidades,
                   pos_graduacoes_advogado,
                   areas_atuacao_advogado,
+                  oab_fotos,
                   oabs,
                   advogados,
                   clientes,

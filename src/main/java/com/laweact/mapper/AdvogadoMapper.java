@@ -1,10 +1,16 @@
 package com.laweact.mapper;
 
+import java.time.LocalDate;
+import java.time.Period;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
 
 import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
+import com.laweact.dto.advogado.AdvogadoEnderecoPublicoDTO;
+import com.laweact.dto.advogado.AdvogadoOabPublicaDTO;
+import com.laweact.dto.advogado.AdvogadoPerfilPublicoResponseDTO;
 import com.laweact.dto.advogado.AdvogadoPerfilResponseDTO;
 import com.laweact.dto.advogado.AreaAtuacaoResponseDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoResponseDTO;
@@ -133,6 +139,111 @@ public class AdvogadoMapper {
                 .especialidades(especialidades.stream().map(this::toEspecialidadeResponse).toList())
                 .formasCobranca(formasCobranca.stream().map(this::toFormaCobrancaResponse).toList())
                 .posGraduacoes(posGraduacoes.stream().map(this::toPosGraduacaoResponse).toList())
+                .build();
+    }
+
+    public AdvogadoPerfilPublicoResponseDTO toPerfilPublicoResponse(
+            AdvogadoEntity advogado,
+            EnderecoEntity endereco,
+            List<OabEntity> oabs,
+            List<AreaAtuacaoAdvogadoEntity> areas,
+            List<AdvogadoModalidadeEntity> modalidades,
+            List<AdvogadoEspecialidadeEntity> especialidades,
+            List<AdvogadoFormaCobrancaEntity> formasCobranca,
+            List<PosGraduacaoAdvogadoEntity> posGraduacoes
+    ) {
+        String nomeExibicao = advogado.getNomeSocial() != null && !advogado.getNomeSocial().isBlank()
+                ? advogado.getNomeSocial().trim()
+                : advogado.getNomeCompleto();
+
+        AdvogadoOabPublicaDTO oabPrincipal = oabs.stream()
+                .filter(o -> Boolean.TRUE.equals(o.getPrincipal()))
+                .findFirst()
+                .map(this::toOabPublica)
+                .orElse(null);
+
+        List<AdvogadoOabPublicaDTO> oabsSuplementares = oabs.stream()
+                .filter(o -> !Boolean.TRUE.equals(o.getPrincipal()))
+                .map(this::toOabPublica)
+                .toList();
+
+        LinkedHashMap<String, CatalogoItemResponseDTO> especialidadesUnicas = new LinkedHashMap<>();
+        LinkedHashMap<String, CatalogoItemResponseDTO> subespecialidadesUnicas = new LinkedHashMap<>();
+        for (AdvogadoEspecialidadeEntity item : especialidades) {
+            String espCodigo = item.getEspecialidade() != null
+                    ? item.getEspecialidade().getCodigo()
+                    : item.getEspecialidadeLivre();
+            String espNome = item.getEspecialidade() != null
+                    ? item.getEspecialidade().getNome()
+                    : item.getEspecialidadeLivre();
+            if (espCodigo != null && !espCodigo.isBlank() && espNome != null && !espNome.isBlank()) {
+                especialidadesUnicas.putIfAbsent(espCodigo, CatalogoItemResponseDTO.builder()
+                        .codigo(espCodigo)
+                        .nome(espNome)
+                        .build());
+            }
+
+            String subCodigo = item.getSubespecialidade() != null
+                    ? item.getSubespecialidade().getCodigo()
+                    : item.getSubespecialidadeLivre();
+            String subNome = item.getSubespecialidade() != null
+                    ? item.getSubespecialidade().getNome()
+                    : item.getSubespecialidadeLivre();
+            if (subCodigo != null && !subCodigo.isBlank() && subNome != null && !subNome.isBlank()) {
+                subespecialidadesUnicas.putIfAbsent(subCodigo, CatalogoItemResponseDTO.builder()
+                        .codigo(subCodigo)
+                        .nome(subNome)
+                        .build());
+            }
+        }
+
+        int anosExperiencia = 0;
+        if (advogado.getAtuacaoDesde() != null) {
+            anosExperiencia = Math.max(0, Period.between(advogado.getAtuacaoDesde(), LocalDate.now()).getYears());
+        }
+
+        AdvogadoEnderecoPublicoDTO enderecoPublico = null;
+        if (endereco != null) {
+            enderecoPublico = AdvogadoEnderecoPublicoDTO.builder()
+                    .bairro(endereco.getBairro())
+                    .cidade(endereco.getCidade())
+                    .estado(endereco.getEstado())
+                    .build();
+        }
+
+        return AdvogadoPerfilPublicoResponseDTO.builder()
+                .id(advogado.getUsuarioId())
+                .nome(nomeExibicao)
+                .nomeCompleto(advogado.getNomeCompleto())
+                .nomeSocial(advogado.getNomeSocial())
+                .pronomeTratamento(advogado.getPronomeTratamento())
+                .fotoUrl(advogado.getFotoUrl())
+                .biografia(advogado.getBiografia())
+                .disponibilidade(advogado.getDisponibilidade())
+                .mediaAvaliacoes(advogado.getMediaAvaliacoes())
+                .totalAvaliacoes(advogado.getTotalAvaliacoes())
+                .universidade(advogado.getUniversidade())
+                .curso(advogado.getCurso())
+                .anoFormacao(advogado.getAnoFormacao())
+                .atuacaoDesde(advogado.getAtuacaoDesde())
+                .anosExperiencia(anosExperiencia)
+                .endereco(enderecoPublico)
+                .oabPrincipal(oabPrincipal)
+                .oabsSuplementares(oabsSuplementares)
+                .modalidades(modalidades.stream().map(this::toModalidadeResponse).toList())
+                .especialidades(List.copyOf(especialidadesUnicas.values()))
+                .subespecialidades(List.copyOf(subespecialidadesUnicas.values()))
+                .formasCobranca(formasCobranca.stream().map(this::toFormaCobrancaResponse).toList())
+                .areasAtuacao(areas.stream().map(this::toAreaResponse).toList())
+                .posGraduacoes(posGraduacoes.stream().map(this::toPosGraduacaoResponse).toList())
+                .build();
+    }
+
+    private AdvogadoOabPublicaDTO toOabPublica(OabEntity oab) {
+        return AdvogadoOabPublicaDTO.builder()
+                .numero(oab.getNumero())
+                .uf(oab.getUf())
+                .principal(Boolean.TRUE.equals(oab.getPrincipal()))
                 .build();
     }
 

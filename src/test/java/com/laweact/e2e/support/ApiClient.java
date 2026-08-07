@@ -39,6 +39,10 @@ public class ApiClient {
         return restTemplate.exchange(path, HttpMethod.GET, jsonEntity(null), JsonNode.class);
     }
 
+    public ResponseEntity<JsonNode> delete(String path) {
+        return restTemplate.exchange(path, HttpMethod.DELETE, jsonEntity(null), JsonNode.class);
+    }
+
     private HttpEntity<?> jsonEntity(Object body) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

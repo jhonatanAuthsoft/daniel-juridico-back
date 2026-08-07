@@ -13,12 +13,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.laweact.dto.conexao.ConexaoResponseDTO;
 import com.laweact.dto.shared.ApiResponse;
 import com.laweact.dto.solicitacao.CriarSolicitacaoInputDTO;
 import com.laweact.dto.solicitacao.CriarSolicitacaoResponseDTO;
 import com.laweact.dto.solicitacao.SolicitacaoListagemResponseDTO;
 import com.laweact.dto.solicitacao.SolicitacaoMatchResponseDTO;
 import com.laweact.model.enums.StatusSolicitacaoEnum;
+import com.laweact.service.ConexaoService;
 import com.laweact.service.SolicitacaoService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,6 +37,7 @@ import lombok.RequiredArgsConstructor;
 public class SolicitacaoController {
 
     private final SolicitacaoService solicitacaoService;
+    private final ConexaoService conexaoService;
 
     @PostMapping
     @Operation(
@@ -101,6 +104,16 @@ public class SolicitacaoController {
             @PathVariable UUID id
     ) {
         List<SolicitacaoMatchResponseDTO> data = solicitacaoService.listarMatches(id);
+        return ResponseEntity.ok(ApiResponse.success(data, "Consulta realizada com sucesso"));
+    }
+
+    @GetMapping("/{id}/conexoes")
+    @Operation(
+            summary = "Listar conexões da solicitação",
+            description = "Conexões do cliente autenticado para esta demanda"
+    )
+    public ResponseEntity<ApiResponse<List<ConexaoResponseDTO>>> listarConexoes(@PathVariable UUID id) {
+        List<ConexaoResponseDTO> data = conexaoService.listarPorSolicitacaoDoCliente(id);
         return ResponseEntity.ok(ApiResponse.success(data, "Consulta realizada com sucesso"));
     }
 }

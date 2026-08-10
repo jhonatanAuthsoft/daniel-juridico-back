@@ -20,6 +20,8 @@ public record ClientePerfilResponseDTO(
         @NotNull TipoDocumentoEnum tipoDocumento,
         @NotBlank String numeroDocumento,
         String rg,
+        String rgOrgaoEmissor,
+        String rgUf,
         LocalDate dataNascimento,
         @NotNull PronomesEnum pronomes,
         String fotoUrl,

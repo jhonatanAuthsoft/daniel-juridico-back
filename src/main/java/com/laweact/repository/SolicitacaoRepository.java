@@ -14,11 +14,33 @@ import com.laweact.model.enums.StatusSolicitacaoEnum;
 
 public interface SolicitacaoRepository extends JpaRepository<SolicitacaoEntity, UUID> {
 
-    Page<SolicitacaoEntity> findByCliente_UsuarioIdOrderByCreatedAtDesc(UUID usuarioId, Pageable pageable);
-
-    Page<SolicitacaoEntity> findByCliente_UsuarioIdAndStatusOrderByCreatedAtDesc(
-            UUID usuarioId,
-            StatusSolicitacaoEnum status,
+    @Query(
+            value = """
+                    SELECT s FROM SolicitacaoEntity s
+                    WHERE s.cliente.usuarioId = :usuarioId
+                      AND (:status IS NULL OR s.status = :status)
+                      AND (
+                        :busca = ''
+                        OR LOWER(s.titulo) LIKE LOWER(CONCAT('%', :busca, '%'))
+                        OR LOWER(s.descricao) LIKE LOWER(CONCAT('%', :busca, '%'))
+                      )
+                    ORDER BY s.createdAt DESC
+                    """,
+            countQuery = """
+                    SELECT COUNT(s) FROM SolicitacaoEntity s
+                    WHERE s.cliente.usuarioId = :usuarioId
+                      AND (:status IS NULL OR s.status = :status)
+                      AND (
+                        :busca = ''
+                        OR LOWER(s.titulo) LIKE LOWER(CONCAT('%', :busca, '%'))
+                        OR LOWER(s.descricao) LIKE LOWER(CONCAT('%', :busca, '%'))
+                      )
+                    """
+    )
+    Page<SolicitacaoEntity> findForCliente(
+            @Param("usuarioId") UUID usuarioId,
+            @Param("status") StatusSolicitacaoEnum status,
+            @Param("busca") String busca,
             Pageable pageable
     );
 

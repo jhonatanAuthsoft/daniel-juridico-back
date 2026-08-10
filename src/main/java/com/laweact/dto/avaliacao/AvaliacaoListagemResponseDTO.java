@@ -9,5 +9,6 @@ import lombok.Builder;
 public record AvaliacaoListagemResponseDTO(
         List<AvaliacaoItemResponseDTO> items,
         BigDecimal mediaAvaliacoes,
-        long totalAvaliacoes
+        long totalAvaliacoes,
+        boolean podeAvaliar
 ) {}

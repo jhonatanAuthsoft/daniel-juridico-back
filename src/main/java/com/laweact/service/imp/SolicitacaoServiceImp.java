@@ -31,8 +31,10 @@ import com.laweact.model.entity.SolicitacaoMatchEntity;
 import com.laweact.model.entity.SubespecialidadeEntity;
 import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.model.enums.PerfilUsuarioEnum;
+import com.laweact.model.enums.StatusConexaoEnum;
 import com.laweact.model.enums.StatusSolicitacaoEnum;
 import com.laweact.repository.ClienteRepository;
+import com.laweact.repository.ConexaoRepository;
 import com.laweact.repository.EspecialidadeRepository;
 import com.laweact.repository.SolicitacaoMatchRepository;
 import com.laweact.repository.SolicitacaoRepository;
@@ -51,11 +53,12 @@ public class SolicitacaoServiceImp implements SolicitacaoService {
 
     private static final EnumSet<StatusSolicitacaoEnum> STATUS_NAO_CANCELAVEIS = EnumSet.of(
             StatusSolicitacaoEnum.CANCELADA,
-            StatusSolicitacaoEnum.ENCERRADA
+            StatusSolicitacaoEnum.MATCH_REALIZADO
     );
 
     private final SolicitacaoRepository solicitacaoRepository;
     private final SolicitacaoMatchRepository solicitacaoMatchRepository;
+    private final ConexaoRepository conexaoRepository;
     private final ClienteRepository clienteRepository;
     private final UsuarioRepository usuarioRepository;
     private final EspecialidadeRepository especialidadeRepository;
@@ -101,7 +104,7 @@ public class SolicitacaoServiceImp implements SolicitacaoService {
                 .descricao(input.descricao().trim())
                 .formaCobranca(input.formaCobranca())
                 .experienciaMinimaMeses(input.experienciaMinimaMeses())
-                .status(StatusSolicitacaoEnum.ABERTA)
+                .status(StatusSolicitacaoEnum.AGUARDANDO_MATCHING)
                 .build();
 
         SolicitacaoEntity salva = solicitacaoRepository.save(entity);
@@ -157,7 +160,12 @@ public class SolicitacaoServiceImp implements SolicitacaoService {
 
     @Override
     @Transactional(readOnly = true)
-    public ListagemPaginada listarDoClienteAutenticado(int limit, int offset, StatusSolicitacaoEnum status) {
+    public ListagemPaginada listarDoClienteAutenticado(
+            int limit,
+            int offset,
+            StatusSolicitacaoEnum status,
+            String busca
+    ) {
         UsuarioEntity usuario = obterUsuarioAutenticado();
         if (usuario.getPerfil() != PerfilUsuarioEnum.CLIENTE) {
             throw new CustomError("Apenas clientes podem listar solicitações", HttpStatus.FORBIDDEN, "FORBIDDEN");
@@ -166,17 +174,18 @@ public class SolicitacaoServiceImp implements SolicitacaoService {
         int pageSize = limit > 0 ? limit : 10;
         int pageIndex = Math.max(offset, 0) / pageSize;
         PageRequest pageable = PageRequest.of(pageIndex, pageSize);
+        String buscaNormalizada = (busca == null || busca.isBlank()) ? "" : busca.trim();
 
-        Page<SolicitacaoEntity> page = status == null
-                ? solicitacaoRepository.findByCliente_UsuarioIdOrderByCreatedAtDesc(usuario.getId(), pageable)
-                : solicitacaoRepository.findByCliente_UsuarioIdAndStatusOrderByCreatedAtDesc(
-                        usuario.getId(),
-                        status,
-                        pageable
-                );
+        Page<SolicitacaoEntity> page = solicitacaoRepository.findForCliente(
+                usuario.getId(),
+                status,
+                buscaNormalizada,
+                pageable
+        );
 
         List<SolicitacaoEntity> solicitacoes = page.getContent();
         Map<UUID, Long> matchesPorSolicitacao = contarMatches(solicitacoes);
+        Map<UUID, Long> aceitasPorSolicitacao = contarConexoesAceitas(solicitacoes);
         Map<String, String> nomesEspecialidade = carregarNomesEspecialidade(solicitacoes);
 
         List<SolicitacaoListagemItemDTO> items = solicitacoes.stream()
@@ -193,6 +202,7 @@ public class SolicitacaoServiceImp implements SolicitacaoService {
                                 s.getEspecialidadeCodigo()
                         ))
                         .totalMatches(matchesPorSolicitacao.getOrDefault(s.getId(), 0L).intValue())
+                        .totalConexoesAceitas(aceitasPorSolicitacao.getOrDefault(s.getId(), 0L).intValue())
                         .build())
                 .toList();
 
@@ -219,6 +229,21 @@ public class SolicitacaoServiceImp implements SolicitacaoService {
         List<UUID> ids = solicitacoes.stream().map(SolicitacaoEntity::getId).toList();
         Map<UUID, Long> resultado = new HashMap<>();
         for (Object[] row : solicitacaoMatchRepository.countGroupedBySolicitacaoIds(ids)) {
+            resultado.put((UUID) row[0], (Long) row[1]);
+        }
+        return resultado;
+    }
+
+    private Map<UUID, Long> contarConexoesAceitas(List<SolicitacaoEntity> solicitacoes) {
+        if (solicitacoes.isEmpty()) {
+            return Map.of();
+        }
+        List<UUID> ids = solicitacoes.stream().map(SolicitacaoEntity::getId).toList();
+        Map<UUID, Long> resultado = new HashMap<>();
+        for (Object[] row : conexaoRepository.countGroupedBySolicitacaoIdsAndStatus(
+                ids,
+                StatusConexaoEnum.ACEITA
+        )) {
             resultado.put((UUID) row[0], (Long) row[1]);
         }
         return resultado;

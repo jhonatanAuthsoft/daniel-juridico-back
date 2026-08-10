@@ -40,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ConexaoServiceImp implements ConexaoService {
 
     private static final Set<StatusSolicitacaoEnum> STATUS_SOLICITACAO_BLOQUEADOS =
-            EnumSet.of(StatusSolicitacaoEnum.CANCELADA, StatusSolicitacaoEnum.ENCERRADA);
+            EnumSet.of(StatusSolicitacaoEnum.CANCELADA);
 
     private final ConexaoRepository conexaoRepository;
     private final SolicitacaoRepository solicitacaoRepository;

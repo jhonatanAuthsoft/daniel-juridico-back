@@ -68,5 +68,5 @@ public class SolicitacaoEntity extends BaseEntity {
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 40)
-    private StatusSolicitacaoEnum status = StatusSolicitacaoEnum.ABERTA;
+    private StatusSolicitacaoEnum status = StatusSolicitacaoEnum.AGUARDANDO_MATCHING;
 }

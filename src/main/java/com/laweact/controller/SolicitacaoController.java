@@ -57,16 +57,17 @@ public class SolicitacaoController {
     @GetMapping
     @Operation(
             summary = "Listar solicitações do cliente",
-            description = "Retorna as solicitações do cliente autenticado, com filtro opcional por status, "
-                    + "paginação de 10 em 10 e contagem global por status para os bullets"
+            description = "Retorna as solicitações do cliente autenticado, com filtro opcional por status e busca "
+                    + "(título/descrição), paginação de 10 em 10 e contagem global por status para os bullets"
     )
     public ResponseEntity<ApiResponse<SolicitacaoListagemResponseDTO>> listar(
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(defaultValue = "0") int offset,
-            @RequestParam(required = false) StatusSolicitacaoEnum status
+            @RequestParam(required = false) StatusSolicitacaoEnum status,
+            @RequestParam(required = false) String busca
     ) {
         SolicitacaoService.ListagemPaginada listagem =
-                solicitacaoService.listarDoClienteAutenticado(limit, offset, status);
+                solicitacaoService.listarDoClienteAutenticado(limit, offset, status, busca);
         return ResponseEntity.ok(ApiResponse.success(
                 listagem.data(),
                 "Consulta realizada com sucesso",
@@ -88,7 +89,7 @@ public class SolicitacaoController {
     @Operation(
             summary = "Cancelar solicitação",
             description = "Cancela a solicitação do cliente autenticado. "
-                    + "Não permitido para status CANCELADA ou ENCERRADA"
+                    + "Não permitido para status CANCELADA ou MATCH_REALIZADO"
     )
     public ResponseEntity<ApiResponse<CriarSolicitacaoResponseDTO>> cancelar(@PathVariable UUID id) {
         CriarSolicitacaoResponseDTO data = solicitacaoService.cancelarDoClienteAutenticado(id);

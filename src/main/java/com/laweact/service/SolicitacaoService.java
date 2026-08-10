@@ -23,5 +23,10 @@ public interface SolicitacaoService {
 
     record ListagemPaginada(SolicitacaoListagemResponseDTO data, PaginationInfo pagination) {}
 
-    ListagemPaginada listarDoClienteAutenticado(int limit, int offset, StatusSolicitacaoEnum status);
+    ListagemPaginada listarDoClienteAutenticado(
+            int limit,
+            int offset,
+            StatusSolicitacaoEnum status,
+            String busca
+    );
 }

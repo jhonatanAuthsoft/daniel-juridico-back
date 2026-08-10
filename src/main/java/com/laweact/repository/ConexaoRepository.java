@@ -1,5 +1,6 @@
 package com.laweact.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -69,4 +70,22 @@ public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
             order by c.createdAt desc
             """)
     List<ConexaoEntity> findBySolicitacaoId(@Param("solicitacaoId") UUID solicitacaoId);
+
+    @Query("""
+            SELECT c.solicitacao.id, COUNT(c)
+            FROM ConexaoEntity c
+            WHERE c.solicitacao.id IN :solicitacaoIds
+              AND c.status = :status
+            GROUP BY c.solicitacao.id
+            """)
+    List<Object[]> countGroupedBySolicitacaoIdsAndStatus(
+            @Param("solicitacaoIds") Collection<UUID> solicitacaoIds,
+            @Param("status") StatusConexaoEnum status
+    );
+
+    boolean existsByCliente_UsuarioIdAndAdvogado_UsuarioIdAndStatus(
+            UUID clienteId,
+            UUID advogadoId,
+            StatusConexaoEnum status
+    );
 }

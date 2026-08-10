@@ -55,29 +55,67 @@ class AdvogadoAvaliacoesListarE2ETest extends BaseE2ETest {
         JsonNode items = data.path("items");
         assertThat(items.isArray()).isTrue();
         assertThat(items).hasSize(2);
+        assertThat(items.get(0).path("propria").asBoolean()).isTrue();
+        assertThat(items.get(0).path("comentario").asText()).contains("Atendimento claro");
+        assertThat(items.get(1).path("propria").asBoolean()).isFalse();
 
         assertThat(data.path("totalAvaliacoes").asInt()).isEqualTo(2);
         assertThat(data.path("mediaAvaliacoes").decimalValue())
                 .isEqualByComparingTo(new BigDecimal("4.5"));
 
-        JsonNode propria = null;
         for (JsonNode item : items) {
             assertThat(item.path("id").asText()).isNotBlank();
             assertThat(item.path("nota").isNumber()).isTrue();
             assertThat(item.path("comentario").asText()).isNotBlank();
             assertThat(item.path("nomeAvaliador").asText()).isNotBlank();
             assertThat(item.path("criadoEm").asText()).isNotBlank();
-            if (item.path("propria").asBoolean()) {
-                propria = item;
-            }
         }
-        assertThat(propria).isNotNull();
-        assertThat(propria.path("comentario").asText()).contains("Atendimento claro");
 
         JsonNode pagination = response.getBody().path("pagination");
         assertThat(pagination.path("size").asInt()).isEqualTo(10);
         assertThat(pagination.path("totalElements").asInt()).isEqualTo(2);
         assertThat(pagination.path("page").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("avaliação própria vem primeiro mesmo sendo mais antiga")
+    void shouldListOwnAvaliacaoFirst() {
+        ResponseEntity<JsonNode> cadastroAdv = api.post(
+                "/advogados/cadastrar",
+                Fixtures.advogadoValido("aval.order@laweact.com", "39053344705", "155243")
+        );
+        assertSuccess(cadastroAdv, HttpStatus.CREATED);
+        UUID advogadoId = UUID.fromString(
+                cadastroAdv.getBody().path("data").path("usuario").path("id").asText()
+        );
+
+        ResponseEntity<JsonNode> cli1 = api.post(
+                "/clientes/cadastrar",
+                Fixtures.clienteValido("aval.order1@laweact.com", "15350946056")
+        );
+        assertSuccess(cli1, HttpStatus.CREATED);
+        UUID cliente1Id = UUID.fromString(cli1.getBody().path("data").path("usuario").path("id").asText());
+        String tokenCli1 = cli1.getBody().path("data").path("token").asText();
+
+        ResponseEntity<JsonNode> cli2 = api.post(
+                "/clientes/cadastrar",
+                Fixtures.clienteValido("aval.order2@laweact.com", "71428793860")
+        );
+        assertSuccess(cli2, HttpStatus.CREATED);
+        UUID cliente2Id = UUID.fromString(cli2.getBody().path("data").path("usuario").path("id").asText());
+
+        inserirAvaliacaoEm(advogadoId, cliente1Id, "3.0", "Minha avaliação antiga.", "2026-01-01 10:00:00");
+        inserirAvaliacaoEm(advogadoId, cliente2Id, "5.0", "Avaliação mais recente de outro.", "2026-08-01 10:00:00");
+
+        api.authenticate(tokenCli1);
+        ResponseEntity<JsonNode> response = api.get("/advogados/" + advogadoId + "/avaliacoes");
+        assertSuccess(response, HttpStatus.OK);
+
+        JsonNode items = response.getBody().path("data").path("items");
+        assertThat(items).hasSize(2);
+        assertThat(items.get(0).path("propria").asBoolean()).isTrue();
+        assertThat(items.get(0).path("comentario").asText()).isEqualTo("Minha avaliação antiga.");
+        assertThat(items.get(1).path("comentario").asText()).isEqualTo("Avaliação mais recente de outro.");
     }
 
     @Test
@@ -127,16 +165,41 @@ class AdvogadoAvaliacoesListarE2ETest extends BaseE2ETest {
     }
 
     private void inserirAvaliacao(UUID advogadoId, UUID clienteId, String nota, String comentario) {
+        inserirAvaliacaoEm(advogadoId, clienteId, nota, comentario, null);
+    }
+
+    private void inserirAvaliacaoEm(
+            UUID advogadoId,
+            UUID clienteId,
+            String nota,
+            String comentario,
+            String criadoEm
+    ) {
+        if (criadoEm == null) {
+            jdbcTemplate.update(
+                    """
+                    INSERT INTO avaliacoes_advogado (id, advogado_id, cliente_id, nota, comentario, criado_em)
+                    VALUES (?::uuid, ?::uuid, ?::uuid, ?::numeric, ?, CURRENT_TIMESTAMP)
+                    """,
+                    UUID.randomUUID(),
+                    advogadoId,
+                    clienteId,
+                    nota,
+                    comentario
+            );
+            return;
+        }
         jdbcTemplate.update(
                 """
                 INSERT INTO avaliacoes_advogado (id, advogado_id, cliente_id, nota, comentario, criado_em)
-                VALUES (?::uuid, ?::uuid, ?::uuid, ?::numeric, ?, CURRENT_TIMESTAMP)
+                VALUES (?::uuid, ?::uuid, ?::uuid, ?::numeric, ?, ?::timestamp)
                 """,
                 UUID.randomUUID(),
                 advogadoId,
                 clienteId,
                 nota,
-                comentario
+                comentario,
+                criadoEm
         );
     }
 }

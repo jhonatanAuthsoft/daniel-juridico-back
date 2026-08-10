@@ -17,7 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.laweact.dto.advogado.AdvogadoPerfilPublicoResponseDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoInputDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoResponseDTO;
+import com.laweact.dto.avaliacao.AvaliacaoItemResponseDTO;
 import com.laweact.dto.avaliacao.AvaliacaoListagemResponseDTO;
+import com.laweact.dto.avaliacao.CriarAvaliacaoInputDTO;
 import com.laweact.dto.conexao.ConexaoResponseDTO;
 import com.laweact.dto.shared.ApiResponse;
 import com.laweact.service.AdvogadoService;
@@ -85,8 +87,8 @@ public class AdvogadoController {
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "Listar avaliações do advogado",
-            description = "Retorna avaliações paginadas (mais recentes primeiro), média e total. "
-                    + "Nota válida: 0.5 a 5.0."
+            description = "Retorna avaliações paginadas: a do usuário autenticado primeiro (se houver), "
+                    + "demais por mais recentes. Média e total. Nota válida: 0.5 a 5.0."
     )
     public ResponseEntity<ApiResponse<AvaliacaoListagemResponseDTO>> listarAvaliacoes(
             @PathVariable UUID id,
@@ -99,6 +101,22 @@ public class AdvogadoController {
                 "Consulta realizada com sucesso",
                 listagem.pagination()
         ));
+    }
+
+    @PostMapping("/{id}/avaliacoes")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "Criar avaliação",
+            description = "Cliente com conexão ACEITA cria uma avaliação (nota + comentário). "
+                    + "Uma avaliação por par cliente/advogado."
+    )
+    public ResponseEntity<ApiResponse<AvaliacaoItemResponseDTO>> criarAvaliacao(
+            @PathVariable UUID id,
+            @Valid @RequestBody CriarAvaliacaoInputDTO input
+    ) {
+        AvaliacaoItemResponseDTO data = advogadoService.criarAvaliacao(id, input);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(data, "Avaliação criada com sucesso"));
     }
 
     @DeleteMapping("/{id}/avaliacoes/{avaliacaoId}")

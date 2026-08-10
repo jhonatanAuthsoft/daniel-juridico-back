@@ -52,7 +52,7 @@ class SolicitacaoCriarE2ETest extends BaseE2ETest {
         JsonNode data = response.getBody().path("data");
         assertThat(data.path("id").asText()).isNotBlank();
         assertThat(UUID.fromString(data.path("id").asText())).isNotNull();
-        assertThat(data.path("status").asText()).isEqualTo("ABERTA");
+        assertThat(data.path("status").asText()).isEqualTo("AGUARDANDO_MATCHING");
         assertThat(data.path("titulo").asText()).isEqualTo("Rescisão trabalhista");
         assertThat(data.path("modalidade").asText()).isEqualTo("CONSULTORIA");
         assertThat(data.path("especialidadeCodigo").asText()).isEqualTo("CIVIL");

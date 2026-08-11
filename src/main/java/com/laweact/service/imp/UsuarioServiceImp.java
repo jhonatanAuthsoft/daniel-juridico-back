@@ -2,10 +2,11 @@ package com.laweact.service.imp;
 
 import com.laweact.config.JwtUtil;
 import com.laweact.config.exception.CustomError;
-import com.laweact.dto.usuario.CadastrarUsuarioInputDTO;
-import com.laweact.dto.usuario.EditarUsuarioInputDTO;
+import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
+import com.laweact.dto.cliente.ClienteDetalheResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
+import com.laweact.dto.usuario.MeResponseDTO;
 import com.laweact.dto.usuario.RedefinirSenhaInputDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
 import com.laweact.mapper.UsuarioMapper;
@@ -31,7 +32,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -46,8 +46,11 @@ public class UsuarioServiceImp implements UsuarioService {
     private final PasswordEncoder passwordEncoder;
     private final UsuarioDetailsServiceImp usuarioDetailsServiceImp;
     private final TokenRevogadoRepository tokenRevogadoRepository;
+    private final ClienteServiceImp clienteServiceImp;
+    private final AdvogadoServiceImp advogadoServiceImp;
 
     @Override
+    @Transactional
     public LoginUsuarioResponseDTO login(LoginUsuarioInputDTO loginUsuarioDTO) {
         String email = loginUsuarioDTO.email().toLowerCase();
 
@@ -68,7 +71,15 @@ public class UsuarioServiceImp implements UsuarioService {
         UserDetails userDetails = usuarioDetailsServiceImp.loadUserByUsername(email);
         String jwt = jwtUtil.generateToken(userDetails);
 
-        return usuarioMapper.loginUserResponseToDTO(usuario, jwt);
+        ClienteDetalheResponseDTO cliente = null;
+        AdvogadoDetalheResponseDTO advogado = null;
+        if (usuario.getPerfil() == PerfilUsuarioEnum.CLIENTE) {
+            cliente = clienteServiceImp.carregarDetalhe(usuario.getId());
+        } else if (usuario.getPerfil() == PerfilUsuarioEnum.ADVOGADO) {
+            advogado = advogadoServiceImp.carregarDetalhe(usuario.getId());
+        }
+
+        return usuarioMapper.toLoginResponse(usuario, cliente, advogado, jwt);
     }
 
     @Override
@@ -82,28 +93,7 @@ public class UsuarioServiceImp implements UsuarioService {
 
     @Override
     @Transactional
-    public UsuarioResponseDTO cadastrar(CadastrarUsuarioInputDTO input) {
-        String email = input.email().toLowerCase();
-        Optional<UsuarioEntity> existingUser = usuarioRepository.findByEmail(email);
-        if (existingUser.isPresent()) {
-            throw new CustomError("E-mail já cadastrado", HttpStatus.BAD_REQUEST);
-        }
-
-        UsuarioEntity usuario = UsuarioEntity.builder()
-                .nomeCompleto(input.nomeCompleto())
-                .email(email)
-                .senha(passwordEncoder.encode(input.senha()))
-                .perfil(input.perfil())
-                .status(input.status() != null ? input.status() : StatusUsuarioEnum.ATIVO)
-                .telefone(input.telefone())
-                .build();
-
-        UsuarioEntity saved = usuarioRepository.save(usuario);
-        return usuarioMapper.toResponseDTO(saved);
-    }
-
-    @Override
-    public UsuarioResponseDTO obterUsuarioAutenticado() {
+    public MeResponseDTO obterUsuarioAutenticado() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         if (!(principal instanceof UserDetails userDetails)) {
             throw new CustomError("Usuário não autenticado", HttpStatus.UNAUTHORIZED);
@@ -112,7 +102,15 @@ public class UsuarioServiceImp implements UsuarioService {
         UsuarioEntity usuario = usuarioRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
 
-        return usuarioMapper.toResponseDTO(usuario);
+        ClienteDetalheResponseDTO cliente = null;
+        AdvogadoDetalheResponseDTO advogado = null;
+        if (usuario.getPerfil() == PerfilUsuarioEnum.CLIENTE) {
+            cliente = clienteServiceImp.carregarDetalhe(usuario.getId());
+        } else if (usuario.getPerfil() == PerfilUsuarioEnum.ADVOGADO) {
+            advogado = advogadoServiceImp.carregarDetalhe(usuario.getId());
+        }
+
+        return usuarioMapper.toMeResponse(usuario, cliente, advogado);
     }
 
     @Override
@@ -132,7 +130,6 @@ public class UsuarioServiceImp implements UsuarioService {
         usuario.setSenha(passwordEncoder.encode(novaSenha));
         usuarioRepository.save(usuario);
 
-        // Como não há EmailService no Daniel Jurídico, apenas logamos a nova senha de forma mockada.
         log.info("Senha redefinida para o e-mail: {}. Nova senha temporária gerada: {}", usuario.getEmail(), novaSenha);
     }
 
@@ -140,56 +137,31 @@ public class UsuarioServiceImp implements UsuarioService {
         String maiusculas = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         String minusculas = "abcdefghijklmnopqrstuvwxyz";
         String numeros = "0123456789";
-        
+
         java.security.SecureRandom random = new java.security.SecureRandom();
         StringBuilder password = new StringBuilder();
-        
+
         password.append(maiusculas.charAt(random.nextInt(maiusculas.length())));
         password.append(minusculas.charAt(random.nextInt(minusculas.length())));
         password.append(numeros.charAt(random.nextInt(numeros.length())));
-        
+
         String todos = maiusculas + minusculas + numeros;
         for (int i = 0; i < 9; i++) {
             password.append(todos.charAt(random.nextInt(todos.length())));
         }
-        
+
         List<Character> characters = new java.util.ArrayList<>();
         for (char c : password.toString().toCharArray()) {
             characters.add(c);
         }
         java.util.Collections.shuffle(characters, random);
-        
+
         StringBuilder shuffledPassword = new StringBuilder();
         for (char c : characters) {
             shuffledPassword.append(c);
         }
-        
+
         return shuffledPassword.toString();
-    }
-
-    @Override
-    @Transactional
-    public UsuarioResponseDTO editar(UUID id, EditarUsuarioInputDTO input) {
-        UsuarioEntity usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
-
-        Optional<UsuarioEntity> existingUser = usuarioRepository.findByEmail(input.email().toLowerCase());
-        if (existingUser.isPresent() && !existingUser.get().getId().equals(id)) {
-            throw new CustomError("E-mail já cadastrado para outro usuário", HttpStatus.BAD_REQUEST);
-        }
-
-        usuario.setNomeCompleto(input.nomeCompleto());
-        usuario.setEmail(input.email().toLowerCase());
-        usuario.setPerfil(input.perfil());
-        usuario.setStatus(input.status());
-        usuario.setTelefone(input.telefone());
-
-        if (input.senha() != null && !input.senha().isBlank()) {
-            usuario.setSenha(passwordEncoder.encode(input.senha()));
-        }
-
-        UsuarioEntity saved = usuarioRepository.save(usuario);
-        return usuarioMapper.toResponseDTO(saved);
     }
 
     @Override
@@ -197,8 +169,6 @@ public class UsuarioServiceImp implements UsuarioService {
     public void excluir(UUID id) {
         UsuarioEntity usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
-
-        // Neste projeto, como não há relacionamentos de chaves estrangeiras amarrados a UsuarioEntity na persistência atual, a deleção é direta.
         usuarioRepository.delete(usuario);
     }
 
@@ -232,4 +202,3 @@ public class UsuarioServiceImp implements UsuarioService {
         return usuarioRepository.countWithFilter(searchText, perfilStr, statusStr);
     }
 }
-

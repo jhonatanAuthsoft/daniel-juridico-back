@@ -1,0 +1,190 @@
+package com.laweact.service.imp;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import com.laweact.config.JwtUtil;
+import com.laweact.config.exception.CustomError;
+import com.laweact.dto.cliente.CadastrarClienteInputDTO;
+import com.laweact.dto.cliente.CadastrarClienteResponseDTO;
+import com.laweact.dto.cliente.ClienteDetalheResponseDTO;
+import com.laweact.mapper.ClienteMapper;
+import com.laweact.model.entity.ClienteEntity;
+import com.laweact.model.entity.EnderecoEntity;
+import com.laweact.model.entity.UsuarioEntity;
+import com.laweact.model.enums.PerfilUsuarioEnum;
+import com.laweact.model.enums.StatusUsuarioEnum;
+import com.laweact.model.enums.TipoDocumentoEnum;
+import com.laweact.repository.ClienteRepository;
+import com.laweact.repository.EnderecoRepository;
+import com.laweact.repository.UsuarioRepository;
+import com.laweact.service.ClienteService;
+
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+
+@Service
+@Log4j2
+@RequiredArgsConstructor
+public class ClienteServiceImp implements ClienteService {
+
+    private final UsuarioRepository usuarioRepository;
+    private final ClienteRepository clienteRepository;
+    private final EnderecoRepository enderecoRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final UsuarioDetailsServiceImp usuarioDetailsServiceImp;
+    private final JwtUtil jwtUtil;
+    private final ClienteMapper clienteMapper;
+
+    @Override
+    @Transactional
+    public CadastrarClienteResponseDTO cadastrar(CadastrarClienteInputDTO input) {
+        validarCamposPorTipoDocumento(input);
+
+        String email = input.email().toLowerCase().trim();
+        String documento = normalizarDocumento(input.numeroDocumento());
+        validarDocumento(input.tipoDocumento(), documento);
+
+        if (usuarioRepository.findByEmail(email).isPresent()) {
+            throw new CustomError("E-mail já cadastrado", HttpStatus.BAD_REQUEST);
+        }
+        if (clienteRepository.existsByNumeroDocumento(documento)) {
+            throw new CustomError("Documento já cadastrado", HttpStatus.BAD_REQUEST);
+        }
+
+        String nomeExibicao = resolverNomeExibicao(input);
+
+        UsuarioEntity usuario = UsuarioEntity.builder()
+                .nomeCompleto(nomeExibicao)
+                .email(email)
+                .senha(passwordEncoder.encode(input.senha()))
+                .perfil(PerfilUsuarioEnum.CLIENTE)
+                .status(StatusUsuarioEnum.ATIVO)
+                .telefone(input.telefone().trim())
+                .tentativasLoginFalhas(0)
+                .build();
+
+        UsuarioEntity usuarioSalvo = usuarioRepository.save(usuario);
+
+        ClienteEntity.ClienteEntityBuilder clienteBuilder = ClienteEntity.builder()
+                .usuario(usuarioSalvo)
+                .nomeCompleto(nomeExibicao)
+                .tipoDocumento(input.tipoDocumento())
+                .numeroDocumento(documento)
+                .pronomes(input.pronomes())
+                .fotoUrl(blankToNull(input.fotoUrl()))
+                .faixaRenda(blankToNull(input.faixaRenda()))
+                .estadoCivil(blankToNull(input.estadoCivil()));
+
+        if (input.tipoDocumento() == TipoDocumentoEnum.CPF) {
+            clienteBuilder
+                    .profissao(input.profissao().trim())
+                    .rg(input.rg().trim())
+                    .dataNascimento(input.dataNascimento());
+        } else {
+            clienteBuilder
+                    .razaoSocial(input.razaoSocial().trim())
+                    .areaAtuacao(input.areaAtuacao().trim());
+        }
+
+        ClienteEntity clienteSalvo = clienteRepository.save(clienteBuilder.build());
+
+        EnderecoEntity endereco = EnderecoEntity.builder()
+                .usuario(usuarioSalvo)
+                .cep(normalizarCep(input.cep()))
+                .logradouro(input.logradouro().trim())
+                .numero(input.numero().trim())
+                .complemento(blankToNull(input.complemento()))
+                .bairro(input.bairro().trim())
+                .cidade(input.cidade().trim())
+                .estado(input.estado().trim().toUpperCase())
+                .build();
+
+        EnderecoEntity enderecoSalvo = enderecoRepository.save(endereco);
+
+        UserDetails userDetails = usuarioDetailsServiceImp.loadUserByUsername(email);
+        String token = jwtUtil.generateToken(userDetails);
+
+        log.info("Cliente cadastrado: {}", email);
+        return clienteMapper.toCadastrarResponse(usuarioSalvo, clienteSalvo, enderecoSalvo, token);
+    }
+
+    public ClienteDetalheResponseDTO carregarDetalhe(java.util.UUID usuarioId) {
+        ClienteEntity cliente = clienteRepository.findByUsuarioId(usuarioId)
+                .orElseThrow(() -> new CustomError("Perfil de cliente não encontrado", HttpStatus.NOT_FOUND));
+        EnderecoEntity endereco = enderecoRepository.findByUsuario_Id(usuarioId).orElse(null);
+        return clienteMapper.toDetalheResponse(cliente, endereco);
+    }
+
+    private void validarCamposPorTipoDocumento(CadastrarClienteInputDTO input) {
+        if (input.tipoDocumento() == TipoDocumentoEnum.CPF) {
+            if (isBlank(input.nomeCompleto())) {
+                throw new CustomError("O nome completo é obrigatório para CPF", HttpStatus.BAD_REQUEST);
+            }
+            if (isBlank(input.rg())) {
+                throw new CustomError("O RG é obrigatório para CPF", HttpStatus.BAD_REQUEST);
+            }
+            if (input.dataNascimento() == null) {
+                throw new CustomError("A data de nascimento é obrigatória para CPF", HttpStatus.BAD_REQUEST);
+            }
+            if (isBlank(input.profissao())) {
+                throw new CustomError("A profissão é obrigatória para CPF", HttpStatus.BAD_REQUEST);
+            }
+            return;
+        }
+
+        if (input.tipoDocumento() == TipoDocumentoEnum.CNPJ) {
+            if (isBlank(input.razaoSocial())) {
+                throw new CustomError("A razão social é obrigatória para CNPJ", HttpStatus.BAD_REQUEST);
+            }
+            if (isBlank(input.areaAtuacao())) {
+                throw new CustomError("A área de atuação é obrigatória para CNPJ", HttpStatus.BAD_REQUEST);
+            }
+        }
+    }
+
+    private String resolverNomeExibicao(CadastrarClienteInputDTO input) {
+        if (input.tipoDocumento() == TipoDocumentoEnum.CNPJ) {
+            if (!isBlank(input.nomeCompleto())) {
+                return input.nomeCompleto().trim();
+            }
+            return input.razaoSocial().trim();
+        }
+        return input.nomeCompleto().trim();
+    }
+
+    private void validarDocumento(TipoDocumentoEnum tipo, String documento) {
+        if (tipo == TipoDocumentoEnum.CPF && documento.length() != 11) {
+            throw new CustomError("CPF deve conter 11 dígitos", HttpStatus.BAD_REQUEST);
+        }
+        if (tipo == TipoDocumentoEnum.CNPJ && documento.length() != 14) {
+            throw new CustomError("CNPJ deve conter 14 dígitos", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private String normalizarDocumento(String documento) {
+        return documento.replaceAll("\\D", "");
+    }
+
+    private String normalizarCep(String cep) {
+        String digits = cep.replaceAll("\\D", "");
+        if (digits.length() != 8) {
+            throw new CustomError("CEP inválido", HttpStatus.BAD_REQUEST);
+        }
+        return digits.substring(0, 5) + "-" + digits.substring(5);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private String blankToNull(String value) {
+        if (isBlank(value)) {
+            return null;
+        }
+        return value.trim();
+    }
+}

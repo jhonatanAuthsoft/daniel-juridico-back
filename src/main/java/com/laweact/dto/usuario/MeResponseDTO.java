@@ -4,14 +4,12 @@ import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
 import com.laweact.dto.cliente.ClienteDetalheResponseDTO;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 
 @Builder
-public record LoginUsuarioResponseDTO(
+public record MeResponseDTO(
         @Valid @NotNull UsuarioResponseDTO usuario,
         ClienteDetalheResponseDTO cliente,
-        AdvogadoDetalheResponseDTO advogado,
-        @NotNull @NotBlank String token
+        AdvogadoDetalheResponseDTO advogado
 ) {}

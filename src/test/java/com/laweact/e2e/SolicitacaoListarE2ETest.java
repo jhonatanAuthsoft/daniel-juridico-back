@@ -36,7 +36,7 @@ class SolicitacaoListarE2ETest extends BaseE2ETest {
 
         JsonNode item = items.get(0);
         assertThat(item.path("id").asText()).isNotBlank();
-        assertThat(item.path("status").asText()).isEqualTo("ABERTA");
+        assertThat(item.path("status").asText()).isEqualTo("AGUARDANDO_MATCHING");
         assertThat(item.path("urgencia").asText()).isEqualTo("URGENTE");
         assertThat(item.path("titulo").asText()).isEqualTo("Rescisão trabalhista");
         assertThat(item.path("descricao").asText()).contains("orientação");
@@ -47,11 +47,9 @@ class SolicitacaoListarE2ETest extends BaseE2ETest {
         assertThat(item.path("totalMatches").asInt()).isGreaterThanOrEqualTo(0);
 
         JsonNode contagem = data.path("contagemPorStatus");
-        assertThat(contagem.path("ABERTA").asInt()).isEqualTo(1);
-        assertThat(contagem.path("AGUARDANDO_MATCHING").asInt()).isEqualTo(0);
+        assertThat(contagem.path("AGUARDANDO_MATCHING").asInt()).isEqualTo(1);
         assertThat(contagem.path("MATCH_REALIZADO").asInt()).isEqualTo(0);
         assertThat(contagem.path("CANCELADA").asInt()).isEqualTo(0);
-        assertThat(contagem.path("ENCERRADA").asInt()).isEqualTo(0);
 
         JsonNode pagination = response.getBody().path("pagination");
         assertThat(pagination.path("size").asInt()).isEqualTo(10);
@@ -70,17 +68,90 @@ class SolicitacaoListarE2ETest extends BaseE2ETest {
         ResponseEntity<JsonNode> cancel = api.post("/solicitacoes/" + idAberta + "/cancelar", null);
         assertSuccess(cancel, HttpStatus.OK);
 
-        ResponseEntity<JsonNode> filtrada = api.get("/solicitacoes?status=ABERTA");
+        ResponseEntity<JsonNode> filtrada = api.get("/solicitacoes?status=AGUARDANDO_MATCHING");
         assertSuccess(filtrada, HttpStatus.OK);
         JsonNode data = filtrada.getBody().path("data");
         assertThat(data.path("items")).hasSize(1);
         assertThat(data.path("items").get(0).path("titulo").asText()).isEqualTo("Aberta 2");
-        assertThat(data.path("items").get(0).path("status").asText()).isEqualTo("ABERTA");
+        assertThat(data.path("items").get(0).path("status").asText()).isEqualTo("AGUARDANDO_MATCHING");
         assertThat(filtrada.getBody().path("pagination").path("totalElements").asInt()).isEqualTo(1);
 
         JsonNode contagem = data.path("contagemPorStatus");
-        assertThat(contagem.path("ABERTA").asInt()).isEqualTo(1);
+        assertThat(contagem.path("AGUARDANDO_MATCHING").asInt()).isEqualTo(1);
         assertThat(contagem.path("CANCELADA").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("listagem inclui totalConexoesAceitas separado de totalMatches")
+    void shouldExposeAcceptedConnectionCountOnList() {
+        ResponseEntity<JsonNode> adv = api.post(
+                "/advogados/cadastrar",
+                Fixtures.advogadoParaMatching(
+                        "Bruna Aceite",
+                        "lista.aceitas.adv@laweact.com",
+                        "11144477735",
+                        "610001",
+                        "SP",
+                        "São Paulo",
+                        java.util.List.of("GENERALISTA")
+                )
+        );
+        assertSuccess(adv, HttpStatus.CREATED);
+        String advogadoId = adv.getBody().path("data").path("usuario").path("id").asText();
+        api.logout();
+
+        cadastrarEAutenticarCliente("lista.aceitas@laweact.com", "52998224725");
+        ResponseEntity<JsonNode> criacao = api.post("/solicitacoes", CriarSolicitacaoInputDTO.builder()
+                .titulo("Com aceite")
+                .modalidade(ModalidadeSolicitacaoEnum.CONSULTORIA)
+                .especialidadeCodigo("CIVIL")
+                .subespecialidadeCodigo("CONTRATOS")
+                .uf("SP")
+                .cidade("São Paulo")
+                .urgencia(UrgenciaSolicitacaoEnum.EMERGENCIA)
+                .descricao("Preciso revisar um contrato de prestação de serviços.")
+                .build());
+        assertSuccess(criacao, HttpStatus.CREATED);
+        String solicitacaoId = criacao.getBody().path("data").path("id").asText();
+        int totalMatches = criacao.getBody().path("data").path("totalMatches").asInt();
+        assertThat(totalMatches).isGreaterThanOrEqualTo(1);
+
+        ResponseEntity<JsonNode> conexao = api.post(
+                "/conexoes",
+                java.util.Map.of("solicitacaoId", solicitacaoId, "advogadoId", advogadoId)
+        );
+        assertSuccess(conexao, HttpStatus.CREATED);
+        String conexaoId = conexao.getBody().path("data").path("id").asText();
+
+        api.logout();
+        ResponseEntity<JsonNode> loginAdv = api.post(
+                "/usuarios/login",
+                com.laweact.dto.usuario.LoginUsuarioInputDTO.builder()
+                        .email("lista.aceitas.adv@laweact.com")
+                        .senha(Fixtures.VALID_PASSWORD)
+                        .build()
+        );
+        assertSuccess(loginAdv, HttpStatus.OK);
+        api.authenticate(loginAdv.getBody().path("data").path("token").asText());
+        assertSuccess(api.post("/conexoes/" + conexaoId + "/aceitar", java.util.Map.of()), HttpStatus.OK);
+
+        api.logout();
+        ResponseEntity<JsonNode> loginCli = api.post(
+                "/usuarios/login",
+                com.laweact.dto.usuario.LoginUsuarioInputDTO.builder()
+                        .email("lista.aceitas@laweact.com")
+                        .senha(Fixtures.VALID_PASSWORD)
+                        .build()
+        );
+        assertSuccess(loginCli, HttpStatus.OK);
+        api.authenticate(loginCli.getBody().path("data").path("token").asText());
+
+        ResponseEntity<JsonNode> lista = api.get("/solicitacoes");
+        assertSuccess(lista, HttpStatus.OK);
+        JsonNode item = lista.getBody().path("data").path("items").get(0);
+        assertThat(item.path("totalMatches").asInt()).isEqualTo(totalMatches);
+        assertThat(item.path("totalConexoesAceitas").asInt()).isEqualTo(1);
+        assertThat(item.path("status").asText()).isEqualTo("MATCH_REALIZADO");
     }
 
     @Test
@@ -103,6 +174,21 @@ class SolicitacaoListarE2ETest extends BaseE2ETest {
         assertSuccess(page2, HttpStatus.OK);
         assertThat(page2.getBody().path("data").path("items")).hasSize(1);
         assertThat(page2.getBody().path("pagination").path("page").asInt()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("busca por título/descrição no servidor")
+    void shouldFilterByBusca() {
+        cadastrarEAutenticarCliente("lista.busca@laweact.com", "71428793860");
+        criarSolicitacao("Rescisão trabalhista", UrgenciaSolicitacaoEnum.URGENTE, "CIVIL");
+        criarSolicitacao("Contrato de aluguel", UrgenciaSolicitacaoEnum.MEDIO, "CIVIL");
+
+        ResponseEntity<JsonNode> response = api.get("/solicitacoes?busca=rescisão");
+        assertSuccess(response, HttpStatus.OK);
+        JsonNode items = response.getBody().path("data").path("items");
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).path("titulo").asText()).isEqualTo("Rescisão trabalhista");
+        assertThat(response.getBody().path("pagination").path("totalElements").asInt()).isEqualTo(1);
     }
 
     @Test

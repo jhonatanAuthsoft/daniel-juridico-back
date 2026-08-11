@@ -60,6 +60,10 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
         ClienteEntity clienteDb = clienteRepository.findByUsuarioId(usuarioDb.getId()).orElseThrow();
         assertThat(clienteDb.getNumeroDocumento()).isEqualTo(documento);
         assertThat(clienteDb.getProfissao()).isEqualTo("Analista");
+        assertThat(clienteDb.getRgOrgaoEmissor()).isEqualTo("SSP");
+        assertThat(clienteDb.getRgUf()).isEqualTo("SP");
+        assertThat(data.path("cliente").path("rgOrgaoEmissor").asText()).isEqualTo("SSP");
+        assertThat(data.path("cliente").path("rgUf").asText()).isEqualTo("SP");
 
         Integer enderecos = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM enderecos WHERE usuario_id = ?",
@@ -91,6 +95,8 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
         ClienteEntity clienteDb = clienteRepository.findByUsuarioId(usuarioDb.getId()).orElseThrow();
         assertThat(clienteDb.getRazaoSocial()).isEqualTo("Empresa Exemplo LTDA");
         assertThat(clienteDb.getRg()).isNull();
+        assertThat(clienteDb.getRgOrgaoEmissor()).isNull();
+        assertThat(clienteDb.getRgUf()).isNull();
     }
 
     @Test
@@ -138,6 +144,34 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
         ResponseEntity<JsonNode> response = api.post("/clientes/cadastrar", input);
 
         assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "área de atuação");
+        assertThat(usuarioRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("deve exigir órgão e UF do RG para CPF")
+    void shouldFailCpfWithoutRgOrgaoUf() {
+        CadastrarClienteInputDTO input = CadastrarClienteInputDTO.builder()
+                .nomeCompleto("Maria Sem Orgao")
+                .email("cpf.sem.orgao@laweact.com")
+                .senha(Fixtures.VALID_PASSWORD)
+                .profissao("Analista")
+                .tipoDocumento(com.laweact.model.enums.TipoDocumentoEnum.CPF)
+                .numeroDocumento("52998224725")
+                .rg("1234567")
+                .dataNascimento(java.time.LocalDate.of(1990, 5, 20))
+                .pronomes(com.laweact.model.enums.PronomesEnum.ELA)
+                .telefone("11999999999")
+                .cep("01310-100")
+                .logradouro("Av. Paulista")
+                .numero("1000")
+                .bairro("Bela Vista")
+                .cidade("São Paulo")
+                .estado("SP")
+                .build();
+
+        ResponseEntity<JsonNode> response = api.post("/clientes/cadastrar", input);
+
+        assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "órgão emissor");
         assertThat(usuarioRepository.count()).isZero();
     }
 

@@ -83,6 +83,8 @@ public class ClienteServiceImp implements ClienteService {
             clienteBuilder
                     .profissao(input.profissao().trim())
                     .rg(input.rg().trim())
+                    .rgOrgaoEmissor(input.rgOrgaoEmissor().trim())
+                    .rgUf(input.rgUf().trim().toUpperCase())
                     .dataNascimento(input.dataNascimento());
         } else {
             clienteBuilder
@@ -128,6 +130,12 @@ public class ClienteServiceImp implements ClienteService {
             }
             if (isBlank(input.rg())) {
                 throw new CustomError("O RG é obrigatório para CPF", HttpStatus.BAD_REQUEST);
+            }
+            if (isBlank(input.rgOrgaoEmissor())) {
+                throw new CustomError("O órgão emissor do RG é obrigatório para CPF", HttpStatus.BAD_REQUEST);
+            }
+            if (isBlank(input.rgUf()) || input.rgUf().trim().length() != 2) {
+                throw new CustomError("A UF do RG é obrigatória para CPF", HttpStatus.BAD_REQUEST);
             }
             if (input.dataNascimento() == null) {
                 throw new CustomError("A data de nascimento é obrigatória para CPF", HttpStatus.BAD_REQUEST);

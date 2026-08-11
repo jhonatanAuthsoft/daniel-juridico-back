@@ -21,8 +21,8 @@ import com.laweact.model.enums.UrgenciaSolicitacaoEnum;
 class SolicitacaoCancelarE2ETest extends BaseE2ETest {
 
     @Test
-    @DisplayName("cliente cancela solicitação ABERTA")
-    void shouldCancelAberta() {
+    @DisplayName("cliente cancela solicitação AGUARDANDO_MATCHING")
+    void shouldCancelAguardandoMatching() {
         cadastrarEAutenticarCliente("cancel.ok@laweact.com", "39053344705");
         String id = criarSolicitacao();
 
@@ -49,6 +49,20 @@ class SolicitacaoCancelarE2ETest extends BaseE2ETest {
 
         ResponseEntity<JsonNode> second = api.post("/solicitacoes/" + id + "/cancelar", null);
         assertErrorCode(second, HttpStatus.CONFLICT, "INVALID_STATUS");
+    }
+
+    @Test
+    @DisplayName("não cancela solicitação MATCH_REALIZADO")
+    void shouldRejectMatchRealizado() {
+        cadastrarEAutenticarCliente("cancel.match@laweact.com", "71428793860");
+        String id = criarSolicitacao();
+        jdbcTemplate.update(
+                "UPDATE solicitacoes SET status = 'MATCH_REALIZADO' WHERE id = ?::uuid",
+                id
+        );
+
+        ResponseEntity<JsonNode> response = api.post("/solicitacoes/" + id + "/cancelar", null);
+        assertErrorCode(response, HttpStatus.CONFLICT, "INVALID_STATUS");
     }
 
     @Test

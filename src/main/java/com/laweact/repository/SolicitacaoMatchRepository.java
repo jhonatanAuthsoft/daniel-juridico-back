@@ -14,6 +14,8 @@ public interface SolicitacaoMatchRepository extends JpaRepository<SolicitacaoMat
 
     long countBySolicitacao_Id(UUID solicitacaoId);
 
+    boolean existsBySolicitacao_IdAndAdvogado_UsuarioId(UUID solicitacaoId, UUID advogadoId);
+
     @Query("""
             SELECT m.solicitacao.id, COUNT(m)
             FROM SolicitacaoMatchEntity m

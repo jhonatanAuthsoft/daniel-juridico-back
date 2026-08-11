@@ -1,30 +1,42 @@
 package com.laweact.service.imp;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
+import com.laweact.dto.advogado.AdvogadoPerfilPublicoResponseDTO;
 import com.laweact.dto.advogado.AreaAtuacaoInputDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoInputDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoResponseDTO;
 import com.laweact.dto.advogado.EspecialidadeInputDTO;
 import com.laweact.dto.advogado.OabInputDTO;
 import com.laweact.dto.advogado.PosGraduacaoInputDTO;
+import com.laweact.dto.avaliacao.AvaliacaoItemResponseDTO;
+import com.laweact.dto.avaliacao.AvaliacaoListagemResponseDTO;
+import com.laweact.dto.avaliacao.CriarAvaliacaoInputDTO;
+import com.laweact.dto.shared.PaginationInfo;
 import com.laweact.mapper.AdvogadoMapper;
 import com.laweact.model.entity.AdvogadoEntity;
 import com.laweact.model.entity.AdvogadoEspecialidadeEntity;
 import com.laweact.model.entity.AdvogadoFormaCobrancaEntity;
 import com.laweact.model.entity.AdvogadoModalidadeEntity;
 import com.laweact.model.entity.AreaAtuacaoAdvogadoEntity;
+import com.laweact.model.entity.AvaliacaoAdvogadoEntity;
+import com.laweact.model.entity.ClienteEntity;
 import com.laweact.model.entity.EnderecoEntity;
 import com.laweact.model.entity.EspecialidadeEntity;
 import com.laweact.model.entity.FormaCobrancaEntity;
@@ -35,6 +47,7 @@ import com.laweact.model.entity.SubespecialidadeEntity;
 import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.model.enums.DisponibilidadeAdvogadoEnum;
 import com.laweact.model.enums.PerfilUsuarioEnum;
+import com.laweact.model.enums.StatusConexaoEnum;
 import com.laweact.model.enums.StatusUsuarioEnum;
 import com.laweact.model.enums.StatusVerificacaoEnum;
 import com.laweact.repository.AdvogadoEspecialidadeRepository;
@@ -42,6 +55,9 @@ import com.laweact.repository.AdvogadoFormaCobrancaRepository;
 import com.laweact.repository.AdvogadoModalidadeRepository;
 import com.laweact.repository.AdvogadoRepository;
 import com.laweact.repository.AreaAtuacaoAdvogadoRepository;
+import com.laweact.repository.AvaliacaoAdvogadoRepository;
+import com.laweact.repository.ClienteRepository;
+import com.laweact.repository.ConexaoRepository;
 import com.laweact.repository.EnderecoRepository;
 import com.laweact.repository.EspecialidadeRepository;
 import com.laweact.repository.FormaCobrancaRepository;
@@ -79,6 +95,9 @@ public class AdvogadoServiceImp implements AdvogadoService {
     private final SubespecialidadeRepository subespecialidadeRepository;
     private final AdvogadoEspecialidadeRepository advogadoEspecialidadeRepository;
     private final PosGraduacaoAdvogadoRepository posGraduacaoAdvogadoRepository;
+    private final AvaliacaoAdvogadoRepository avaliacaoAdvogadoRepository;
+    private final ClienteRepository clienteRepository;
+    private final ConexaoRepository conexaoRepository;
     private final PasswordEncoder passwordEncoder;
     private final UsuarioDetailsServiceImp usuarioDetailsServiceImp;
     private final SessaoService sessaoService;
@@ -215,6 +234,249 @@ public class AdvogadoServiceImp implements AdvogadoService {
                 advogadoFormaCobrancaRepository.findByAdvogadoUsuarioId(usuarioId),
                 posGraduacaoAdvogadoRepository.findByAdvogadoUsuarioId(usuarioId)
         );
+    }
+
+    @Override
+    @Transactional
+    public AdvogadoPerfilPublicoResponseDTO obterPerfilPublico(UUID advogadoId) {
+        UsuarioEntity solicitante = obterUsuarioAutenticado();
+        if (solicitante.getPerfil() != PerfilUsuarioEnum.CLIENTE) {
+            throw new CustomError(
+                    "Apenas clientes podem visualizar o perfil público do advogado",
+                    HttpStatus.FORBIDDEN,
+                    "FORBIDDEN"
+            );
+        }
+
+        AdvogadoEntity advogado = advogadoRepository.findByUsuarioId(advogadoId)
+                .orElseThrow(() -> new CustomError("Perfil de advogado não encontrado", HttpStatus.NOT_FOUND));
+        EnderecoEntity endereco = enderecoRepository.findByUsuario_Id(advogadoId).orElse(null);
+
+        return advogadoMapper.toPerfilPublicoResponse(
+                advogado,
+                endereco,
+                oabRepository.findByAdvogadoUsuarioId(advogadoId),
+                areaAtuacaoAdvogadoRepository.findByAdvogadoUsuarioId(advogadoId),
+                advogadoModalidadeRepository.findByAdvogadoUsuarioId(advogadoId),
+                advogadoEspecialidadeRepository.findByAdvogadoUsuarioId(advogadoId),
+                advogadoFormaCobrancaRepository.findByAdvogadoUsuarioId(advogadoId),
+                posGraduacaoAdvogadoRepository.findByAdvogadoUsuarioId(advogadoId)
+        );
+    }
+
+    @Override
+    @Transactional
+    public AvaliacoesPaginadas listarAvaliacoes(UUID advogadoId, int limit, int offset) {
+        obterUsuarioAutenticado();
+        if (!advogadoRepository.existsById(advogadoId)) {
+            throw new CustomError("Perfil de advogado não encontrado", HttpStatus.NOT_FOUND);
+        }
+
+        int pageSize = limit > 0 ? limit : 10;
+        int pageIndex = Math.max(offset, 0) / pageSize;
+        // Sort definido na query (própria primeiro, depois mais recentes).
+        PageRequest pageable = PageRequest.of(pageIndex, pageSize);
+
+        UUID usuarioAutenticadoId = obterUsuarioAutenticado().getId();
+        Page<AvaliacaoAdvogadoEntity> page = avaliacaoAdvogadoRepository
+                .findByAdvogadoOrderedWithOwnFirst(advogadoId, usuarioAutenticadoId, pageable);
+
+        List<AvaliacaoItemResponseDTO> items = page.getContent().stream()
+                .map(avaliacao -> toAvaliacaoItem(avaliacao, usuarioAutenticadoId))
+                .toList();
+
+        long total = avaliacaoAdvogadoRepository.countByAdvogado_UsuarioId(advogadoId);
+        BigDecimal mediaRaw = avaliacaoAdvogadoRepository.mediaByAdvogadoId(advogadoId);
+        BigDecimal media = (mediaRaw == null ? BigDecimal.ZERO : mediaRaw).setScale(1, RoundingMode.HALF_UP);
+
+        AvaliacaoListagemResponseDTO data = AvaliacaoListagemResponseDTO.builder()
+                .items(items)
+                .mediaAvaliacoes(media)
+                .totalAvaliacoes(total)
+                .podeAvaliar(calcularPodeAvaliar(advogadoId, usuarioAutenticadoId))
+                .build();
+
+        return new AvaliacoesPaginadas(
+                data,
+                PaginationInfo.of(pageSize, pageIndex * pageSize, total)
+        );
+    }
+
+    private boolean calcularPodeAvaliar(UUID advogadoId, UUID usuarioAutenticadoId) {
+        UsuarioEntity usuario = usuarioRepository.findById(usuarioAutenticadoId).orElse(null);
+        if (usuario == null || usuario.getPerfil() != PerfilUsuarioEnum.CLIENTE) {
+            return false;
+        }
+        boolean temAceita = conexaoRepository.existsByCliente_UsuarioIdAndAdvogado_UsuarioIdAndStatus(
+                usuarioAutenticadoId,
+                advogadoId,
+                StatusConexaoEnum.ACEITA
+        );
+        if (!temAceita) {
+            return false;
+        }
+        return !avaliacaoAdvogadoRepository.existsByAdvogado_UsuarioIdAndCliente_UsuarioId(
+                advogadoId,
+                usuarioAutenticadoId
+        );
+    }
+
+    @Override
+    @Transactional
+    public AvaliacaoItemResponseDTO criarAvaliacao(UUID advogadoId, CriarAvaliacaoInputDTO input) {
+        UsuarioEntity usuario = obterUsuarioAutenticado();
+        if (usuario.getPerfil() != PerfilUsuarioEnum.CLIENTE) {
+            throw new CustomError(
+                    "Apenas clientes podem avaliar advogados",
+                    HttpStatus.FORBIDDEN,
+                    "FORBIDDEN"
+            );
+        }
+
+        AdvogadoEntity advogado = advogadoRepository.findById(advogadoId)
+                .orElseThrow(() -> new CustomError("Perfil de advogado não encontrado", HttpStatus.NOT_FOUND));
+
+        ClienteEntity cliente = clienteRepository.findByUsuarioId(usuario.getId())
+                .orElseThrow(() -> new CustomError("Perfil de cliente não encontrado", HttpStatus.NOT_FOUND));
+
+        BigDecimal nota = validarNotaAvaliacao(input.nota());
+        String comentario = validarComentarioAvaliacao(input.comentario());
+
+        boolean temAceita = conexaoRepository.existsByCliente_UsuarioIdAndAdvogado_UsuarioIdAndStatus(
+                usuario.getId(),
+                advogadoId,
+                StatusConexaoEnum.ACEITA
+        );
+        if (!temAceita) {
+            throw new CustomError(
+                    "É necessário ter uma conexão aceita com o advogado para avaliar",
+                    HttpStatus.FORBIDDEN,
+                    "FORBIDDEN"
+            );
+        }
+
+        if (avaliacaoAdvogadoRepository.existsByAdvogado_UsuarioIdAndCliente_UsuarioId(
+                advogadoId,
+                usuario.getId()
+        )) {
+            throw new CustomError(
+                    "Você já avaliou este advogado",
+                    HttpStatus.CONFLICT,
+                    "CONFLICT"
+            );
+        }
+
+        AvaliacaoAdvogadoEntity salva = avaliacaoAdvogadoRepository.save(AvaliacaoAdvogadoEntity.builder()
+                .advogado(advogado)
+                .cliente(cliente)
+                .nota(nota)
+                .comentario(comentario)
+                .build());
+
+        sincronizarAgregadosAvaliacao(advogado);
+
+        log.info("Avaliação {} criada pelo cliente {} para advogado {}",
+                salva.getId(), usuario.getEmail(), advogadoId);
+        return toAvaliacaoItem(salva, usuario.getId());
+    }
+
+    private BigDecimal validarNotaAvaliacao(BigDecimal nota) {
+        if (nota == null) {
+            throw new CustomError("A nota é obrigatória", HttpStatus.BAD_REQUEST);
+        }
+        if (nota.compareTo(new BigDecimal("0.5")) < 0
+                || nota.compareTo(new BigDecimal("5.0")) > 0) {
+            throw new CustomError("A nota deve estar entre 0.5 e 5.0", HttpStatus.BAD_REQUEST);
+        }
+        BigDecimal times2 = nota.multiply(new BigDecimal("2"));
+        if (times2.compareTo(times2.setScale(0, RoundingMode.FLOOR)) != 0) {
+            throw new CustomError("A nota deve ser múltipla de 0.5", HttpStatus.BAD_REQUEST);
+        }
+        return nota.setScale(1, RoundingMode.HALF_UP);
+    }
+
+    private String validarComentarioAvaliacao(String comentario) {
+        if (comentario == null || comentario.isBlank()) {
+            throw new CustomError("O comentário é obrigatório", HttpStatus.BAD_REQUEST);
+        }
+        String trimmed = comentario.trim();
+        if (trimmed.length() > 800) {
+            throw new CustomError(
+                    "O comentário deve ter no máximo 800 caracteres",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+        return trimmed;
+    }
+
+    private AvaliacaoItemResponseDTO toAvaliacaoItem(AvaliacaoAdvogadoEntity avaliacao, UUID usuarioAutenticadoId) {
+        ClienteEntity cliente = avaliacao.getCliente();
+        String nomeAvaliador = cliente.getRazaoSocial() != null && !cliente.getRazaoSocial().isBlank()
+                ? cliente.getRazaoSocial()
+                : cliente.getNomeCompleto();
+
+        return AvaliacaoItemResponseDTO.builder()
+                .id(avaliacao.getId())
+                .nota(avaliacao.getNota())
+                .comentario(avaliacao.getComentario())
+                .nomeAvaliador(nomeAvaliador)
+                .criadoEm(avaliacao.getCreatedAt())
+                .propria(cliente.getUsuarioId().equals(usuarioAutenticadoId))
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public UUID excluirAvaliacao(UUID advogadoId, UUID avaliacaoId) {
+        UsuarioEntity usuario = obterUsuarioAutenticado();
+        if (usuario.getPerfil() != PerfilUsuarioEnum.CLIENTE) {
+            throw new CustomError(
+                    "Apenas o cliente autor pode excluir a avaliação",
+                    HttpStatus.FORBIDDEN,
+                    "FORBIDDEN"
+            );
+        }
+
+        AvaliacaoAdvogadoEntity avaliacao = avaliacaoAdvogadoRepository.findById(avaliacaoId)
+                .orElseThrow(() -> new CustomError("Avaliação não encontrada", HttpStatus.NOT_FOUND));
+
+        if (!avaliacao.getAdvogado().getUsuarioId().equals(advogadoId)) {
+            throw new CustomError("Avaliação não encontrada", HttpStatus.NOT_FOUND);
+        }
+
+        if (!avaliacao.getCliente().getUsuarioId().equals(usuario.getId())) {
+            throw new CustomError(
+                    "Apenas o autor pode excluir esta avaliação",
+                    HttpStatus.FORBIDDEN,
+                    "FORBIDDEN"
+            );
+        }
+
+        AdvogadoEntity advogado = avaliacao.getAdvogado();
+        avaliacaoAdvogadoRepository.delete(avaliacao);
+        sincronizarAgregadosAvaliacao(advogado);
+
+        log.info("Avaliação {} excluída pelo cliente {}", avaliacaoId, usuario.getEmail());
+        return avaliacaoId;
+    }
+
+    private void sincronizarAgregadosAvaliacao(AdvogadoEntity advogado) {
+        UUID advogadoId = advogado.getUsuarioId();
+        long total = avaliacaoAdvogadoRepository.countByAdvogado_UsuarioId(advogadoId);
+        BigDecimal mediaRaw = avaliacaoAdvogadoRepository.mediaByAdvogadoId(advogadoId);
+        BigDecimal media = (mediaRaw == null ? BigDecimal.ZERO : mediaRaw).setScale(2, RoundingMode.HALF_UP);
+        advogado.setTotalAvaliacoes((int) total);
+        advogado.setMediaAvaliacoes(media);
+        advogadoRepository.save(advogado);
+    }
+
+    private UsuarioEntity obterUsuarioAutenticado() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!(principal instanceof UserDetails userDetails)) {
+            throw new CustomError("Usuário não autenticado", HttpStatus.UNAUTHORIZED);
+        }
+        return usuarioRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
     }
 
     private void validarLimiteOabsSuplementares(List<OabInputDTO> suplementares) {

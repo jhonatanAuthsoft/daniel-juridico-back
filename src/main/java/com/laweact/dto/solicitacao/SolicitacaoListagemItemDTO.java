@@ -18,5 +18,7 @@ public record SolicitacaoListagemItemDTO(
         LocalDateTime dataAbertura,
         String especialidadeCodigo,
         String especialidade,
-        Integer totalMatches
+        Integer totalMatches,
+        /** Quantidade de conexões com status ACEITA nesta solicitação. */
+        Integer totalConexoesAceitas
 ) {}

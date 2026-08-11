@@ -43,6 +43,12 @@ public record CadastrarClienteInputDTO(
 
         String rg,
 
+        @Size(max = 20, message = "O órgão emissor do RG deve ter no máximo 20 caracteres")
+        String rgOrgaoEmissor,
+
+        @Size(min = 2, max = 2, message = "A UF do RG deve ter 2 letras")
+        String rgUf,
+
         @Past(message = "A data de nascimento deve ser no passado")
         LocalDate dataNascimento,
 

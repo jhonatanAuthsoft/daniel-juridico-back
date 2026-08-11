@@ -13,12 +13,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.laweact.dto.conexao.ConexaoResponseDTO;
 import com.laweact.dto.shared.ApiResponse;
 import com.laweact.dto.solicitacao.CriarSolicitacaoInputDTO;
 import com.laweact.dto.solicitacao.CriarSolicitacaoResponseDTO;
 import com.laweact.dto.solicitacao.SolicitacaoListagemResponseDTO;
 import com.laweact.dto.solicitacao.SolicitacaoMatchResponseDTO;
 import com.laweact.model.enums.StatusSolicitacaoEnum;
+import com.laweact.service.ConexaoService;
 import com.laweact.service.SolicitacaoService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,6 +37,7 @@ import lombok.RequiredArgsConstructor;
 public class SolicitacaoController {
 
     private final SolicitacaoService solicitacaoService;
+    private final ConexaoService conexaoService;
 
     @PostMapping
     @Operation(
@@ -54,16 +57,17 @@ public class SolicitacaoController {
     @GetMapping
     @Operation(
             summary = "Listar solicitações do cliente",
-            description = "Retorna as solicitações do cliente autenticado, com filtro opcional por status, "
-                    + "paginação de 10 em 10 e contagem global por status para os bullets"
+            description = "Retorna as solicitações do cliente autenticado, com filtro opcional por status e busca "
+                    + "(título/descrição), paginação de 10 em 10 e contagem global por status para os bullets"
     )
     public ResponseEntity<ApiResponse<SolicitacaoListagemResponseDTO>> listar(
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(defaultValue = "0") int offset,
-            @RequestParam(required = false) StatusSolicitacaoEnum status
+            @RequestParam(required = false) StatusSolicitacaoEnum status,
+            @RequestParam(required = false) String busca
     ) {
         SolicitacaoService.ListagemPaginada listagem =
-                solicitacaoService.listarDoClienteAutenticado(limit, offset, status);
+                solicitacaoService.listarDoClienteAutenticado(limit, offset, status, busca);
         return ResponseEntity.ok(ApiResponse.success(
                 listagem.data(),
                 "Consulta realizada com sucesso",
@@ -85,7 +89,7 @@ public class SolicitacaoController {
     @Operation(
             summary = "Cancelar solicitação",
             description = "Cancela a solicitação do cliente autenticado. "
-                    + "Não permitido para status CANCELADA ou ENCERRADA"
+                    + "Não permitido para status CANCELADA ou MATCH_REALIZADO"
     )
     public ResponseEntity<ApiResponse<CriarSolicitacaoResponseDTO>> cancelar(@PathVariable UUID id) {
         CriarSolicitacaoResponseDTO data = solicitacaoService.cancelarDoClienteAutenticado(id);
@@ -101,6 +105,16 @@ public class SolicitacaoController {
             @PathVariable UUID id
     ) {
         List<SolicitacaoMatchResponseDTO> data = solicitacaoService.listarMatches(id);
+        return ResponseEntity.ok(ApiResponse.success(data, "Consulta realizada com sucesso"));
+    }
+
+    @GetMapping("/{id}/conexoes")
+    @Operation(
+            summary = "Listar conexões da solicitação",
+            description = "Conexões do cliente autenticado para esta demanda"
+    )
+    public ResponseEntity<ApiResponse<List<ConexaoResponseDTO>>> listarConexoes(@PathVariable UUID id) {
+        List<ConexaoResponseDTO> data = conexaoService.listarPorSolicitacaoDoCliente(id);
         return ResponseEntity.ok(ApiResponse.success(data, "Consulta realizada com sucesso"));
     }
 }

@@ -30,6 +30,8 @@ public class ClienteMapper {
                 .tipoDocumento(cliente.getTipoDocumento())
                 .numeroDocumento(cliente.getNumeroDocumento())
                 .rg(cliente.getRg())
+                .rgOrgaoEmissor(cliente.getRgOrgaoEmissor())
+                .rgUf(cliente.getRgUf())
                 .dataNascimento(cliente.getDataNascimento())
                 .pronomes(cliente.getPronomes())
                 .fotoUrl(cliente.getFotoUrl())

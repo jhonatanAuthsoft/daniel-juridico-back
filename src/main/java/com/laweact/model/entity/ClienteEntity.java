@@ -66,6 +66,12 @@ public class ClienteEntity {
     @Column(name = "rg", length = 30)
     private String rg;
 
+    @Column(name = "rg_orgao_emissor", length = 20)
+    private String rgOrgaoEmissor;
+
+    @Column(name = "rg_uf", length = 2)
+    private String rgUf;
+
     @Column(name = "data_nascimento")
     private LocalDate dataNascimento;
 

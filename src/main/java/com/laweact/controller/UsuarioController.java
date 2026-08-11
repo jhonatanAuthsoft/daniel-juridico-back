@@ -23,9 +23,15 @@ import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
 import com.laweact.dto.usuario.RedefinirSenhaInputDTO;
+import com.laweact.dto.usuario.RedefinirSenhaResponseDTO;
+import com.laweact.dto.usuario.SolicitarRecuperacaoSenhaInputDTO;
+import com.laweact.dto.usuario.SolicitarRecuperacaoSenhaResponseDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
+import com.laweact.dto.usuario.ValidarCodigoRecuperacaoInputDTO;
+import com.laweact.dto.usuario.ValidarCodigoRecuperacaoResponseDTO;
 import com.laweact.model.enums.PerfilUsuarioEnum;
 import com.laweact.model.enums.StatusUsuarioEnum;
+import com.laweact.service.RecuperacaoSenhaService;
 import com.laweact.service.TermosAceiteService;
 import com.laweact.service.UsuarioService;
 
@@ -43,6 +49,7 @@ public class UsuarioController {
 
     private final UsuarioService usuarioService;
     private final TermosAceiteService termosAceiteService;
+    private final RecuperacaoSenhaService recuperacaoSenhaService;
 
     @PostMapping("/login")
     @Operation(summary = "Login", description = "Autentica o usuário e retorna JWT")
@@ -50,6 +57,39 @@ public class UsuarioController {
             @Valid @RequestBody LoginUsuarioInputDTO loginUsuarioDTO) {
         LoginUsuarioResponseDTO response = usuarioService.login(loginUsuarioDTO);
         return ResponseEntity.ok(ApiResponse.success(response, "Consulta realizada com sucesso"));
+    }
+
+    @PostMapping("/recuperar-senha")
+    @Operation(
+            summary = "Solicitar recuperação de senha",
+            description = "Gera código de 4 dígitos e envia por e-mail (resposta genérica se a conta existir ou não)"
+    )
+    public ResponseEntity<ApiResponse<SolicitarRecuperacaoSenhaResponseDTO>> solicitarRecuperacaoSenha(
+            @Valid @RequestBody SolicitarRecuperacaoSenhaInputDTO input
+    ) {
+        SolicitarRecuperacaoSenhaResponseDTO response = recuperacaoSenhaService.solicitarCodigo(input);
+        return ResponseEntity.ok(ApiResponse.success(response, response.mensagem()));
+    }
+
+    @PostMapping("/validar-codigo-recuperacao")
+    @Operation(summary = "Validar código de recuperação", description = "Valida o código sem consumi-lo")
+    public ResponseEntity<ApiResponse<ValidarCodigoRecuperacaoResponseDTO>> validarCodigoRecuperacao(
+            @Valid @RequestBody ValidarCodigoRecuperacaoInputDTO input
+    ) {
+        ValidarCodigoRecuperacaoResponseDTO response = recuperacaoSenhaService.validarCodigo(input);
+        return ResponseEntity.ok(ApiResponse.success(response, response.mensagem()));
+    }
+
+    @PostMapping("/redefinir-senha")
+    @Operation(
+            summary = "Redefinir senha",
+            description = "Troca a senha com código válido e invalida sessões ativas"
+    )
+    public ResponseEntity<ApiResponse<RedefinirSenhaResponseDTO>> redefinirSenha(
+            @Valid @RequestBody RedefinirSenhaInputDTO input
+    ) {
+        RedefinirSenhaResponseDTO response = recuperacaoSenhaService.redefinirSenha(input);
+        return ResponseEntity.ok(ApiResponse.success(response, response.mensagem()));
     }
 
     @PostMapping("/aceitar-termos")
@@ -80,12 +120,11 @@ public class UsuarioController {
         return ResponseEntity.ok(ApiResponse.success(true, "Operação realizada com sucesso"));
     }
 
-    @PostMapping("/redefinir-senha")
-    @Operation(summary = "Muda a senha do usuário")
-    public ResponseEntity<ApiResponse<Boolean>> redefinirSenha(
-            @Valid @RequestBody RedefinirSenhaInputDTO redefinirSenhaInputDTO) {
-        usuarioService.redefinirSenha(redefinirSenhaInputDTO);
-        return ResponseEntity.ok(ApiResponse.success(true, "Operação realizada com sucesso"));
+    @GetMapping("/me")
+    @Operation(summary = "Usuário autenticado", description = "Retorna o usuário logado com detalhe do perfil (cliente ou advogado)")
+    public ResponseEntity<ApiResponse<MeResponseDTO>> me() {
+        MeResponseDTO response = usuarioService.obterUsuarioAutenticado();
+        return ResponseEntity.ok(ApiResponse.success(response, "Consulta realizada com sucesso"));
     }
 
     @DeleteMapping("/excluir/{id}")
@@ -93,13 +132,6 @@ public class UsuarioController {
     public ResponseEntity<ApiResponse<Void>> excluir(@PathVariable UUID id) {
         usuarioService.excluir(id);
         return new ResponseEntity<>(ApiResponse.success("Operação realizada com sucesso"), HttpStatus.NO_CONTENT);
-    }
-
-    @GetMapping("/me")
-    @Operation(summary = "Usuário autenticado", description = "Retorna o usuário logado com detalhe do perfil (cliente ou advogado)")
-    public ResponseEntity<ApiResponse<MeResponseDTO>> me() {
-        MeResponseDTO response = usuarioService.obterUsuarioAutenticado();
-        return ResponseEntity.ok(ApiResponse.success(response, "Consulta realizada com sucesso"));
     }
 
     @GetMapping("/{id}")

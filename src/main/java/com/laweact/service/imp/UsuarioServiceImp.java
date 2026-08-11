@@ -7,7 +7,6 @@ import com.laweact.dto.cliente.ClienteDetalheResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
-import com.laweact.dto.usuario.RedefinirSenhaInputDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
 import com.laweact.mapper.UsuarioMapper;
 import com.laweact.model.entity.TokenRevogadoEntity;
@@ -27,7 +26,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -43,7 +41,6 @@ public class UsuarioServiceImp implements UsuarioService {
     private final UsuarioRepository usuarioRepository;
     private final UsuarioMapper usuarioMapper;
     private final JwtUtil jwtUtil;
-    private final PasswordEncoder passwordEncoder;
     private final UsuarioDetailsServiceImp usuarioDetailsServiceImp;
     private final TokenRevogadoRepository tokenRevogadoRepository;
     private final ClienteServiceImp clienteServiceImp;
@@ -111,57 +108,6 @@ public class UsuarioServiceImp implements UsuarioService {
         }
 
         return usuarioMapper.toMeResponse(usuario, cliente, advogado);
-    }
-
-    @Override
-    @Transactional
-    public void redefinirSenha(RedefinirSenhaInputDTO redefinirSenhaInputDTO) {
-        UsuarioEntity usuario = usuarioRepository
-            .findByEmail(redefinirSenhaInputDTO.email().toLowerCase())
-            .orElseThrow(() ->
-                new CustomError("Usuário não encontrado", HttpStatus.BAD_REQUEST)
-            );
-
-        if (usuario.getStatus() != StatusUsuarioEnum.ATIVO) {
-            throw new CustomError("Usuário inativo", HttpStatus.BAD_REQUEST);
-        }
-
-        String novaSenha = gerarSenhaAleatoria();
-        usuario.setSenha(passwordEncoder.encode(novaSenha));
-        usuarioRepository.save(usuario);
-
-        log.info("Senha redefinida para o e-mail: {}. Nova senha temporária gerada: {}", usuario.getEmail(), novaSenha);
-    }
-
-    private String gerarSenhaAleatoria() {
-        String maiusculas = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        String minusculas = "abcdefghijklmnopqrstuvwxyz";
-        String numeros = "0123456789";
-
-        java.security.SecureRandom random = new java.security.SecureRandom();
-        StringBuilder password = new StringBuilder();
-
-        password.append(maiusculas.charAt(random.nextInt(maiusculas.length())));
-        password.append(minusculas.charAt(random.nextInt(minusculas.length())));
-        password.append(numeros.charAt(random.nextInt(numeros.length())));
-
-        String todos = maiusculas + minusculas + numeros;
-        for (int i = 0; i < 9; i++) {
-            password.append(todos.charAt(random.nextInt(todos.length())));
-        }
-
-        List<Character> characters = new java.util.ArrayList<>();
-        for (char c : password.toString().toCharArray()) {
-            characters.add(c);
-        }
-        java.util.Collections.shuffle(characters, random);
-
-        StringBuilder shuffledPassword = new StringBuilder();
-        for (char c : characters) {
-            shuffledPassword.append(c);
-        }
-
-        return shuffledPassword.toString();
     }
 
     @Override

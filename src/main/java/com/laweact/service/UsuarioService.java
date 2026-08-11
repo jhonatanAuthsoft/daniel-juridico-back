@@ -6,7 +6,6 @@ import java.util.UUID;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
-import com.laweact.dto.usuario.RedefinirSenhaInputDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
 import com.laweact.model.enums.PerfilUsuarioEnum;
 import com.laweact.model.enums.StatusUsuarioEnum;
@@ -17,8 +16,6 @@ public interface UsuarioService {
     void logout(String token);
 
     MeResponseDTO obterUsuarioAutenticado();
-
-    void redefinirSenha(RedefinirSenhaInputDTO redefinirSenhaInputDTO);
 
     void excluir(UUID id);
 

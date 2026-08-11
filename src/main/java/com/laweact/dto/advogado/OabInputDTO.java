@@ -1,6 +1,7 @@
 package com.laweact.dto.advogado;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -21,6 +22,7 @@ public record OabInputDTO(
         @PastOrPresent(message = "A data de expedição deve ser no passado ou presente")
         LocalDate dataExpedicao,
 
-        String fotoFrenteUrl,
-        String fotoVersoUrl
+        /** Keys S3 das imagens da carteira (N fotos; limite de produto no front depois). */
+        @Size(max = 20, message = "São permitidas no máximo 20 fotos por OAB")
+        List<String> fotosUrls
 ) {}

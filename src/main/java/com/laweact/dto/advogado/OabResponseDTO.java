@@ -1,6 +1,7 @@
 package com.laweact.dto.advogado;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import com.laweact.model.enums.StatusVerificacaoEnum;
@@ -16,7 +17,6 @@ public record OabResponseDTO(
         @NotBlank String uf,
         @NotNull LocalDate dataExpedicao,
         @NotNull Boolean principal,
-        String fotoFrenteUrl,
-        String fotoVersoUrl,
+        List<String> fotosUrls,
         @NotNull StatusVerificacaoEnum statusValidacao
 ) {}

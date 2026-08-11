@@ -51,6 +51,8 @@ public class SecurityConfig {
                                 "/usuarios/redefinir-senha",
                                 "/clientes/cadastrar",
                                 "/advogados/cadastrar",
+                                "/arquivos/url-upload",
+                                "/arquivos/url-leitura",
                                 "/catalogos/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",

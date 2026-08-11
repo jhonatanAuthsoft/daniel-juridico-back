@@ -1,5 +1,6 @@
 package com.laweact.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -12,4 +13,6 @@ public interface EspecialidadeRepository extends JpaRepository<EspecialidadeEnti
     Optional<EspecialidadeEntity> findByCodigo(String codigo);
 
     List<EspecialidadeEntity> findAllByOrderByNomeAsc();
+
+    List<EspecialidadeEntity> findByCodigoIn(Collection<String> codigos);
 }

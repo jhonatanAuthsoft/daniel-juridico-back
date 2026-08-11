@@ -321,21 +321,30 @@ class RecuperacaoSenhaE2ETest extends BaseE2ETest {
             assertThat(redefinir.getBody().path("data").path("mensagem").asText())
                     .contains("Senha alterada com sucesso");
 
+            Integer sessoesAposReset = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM sessoes s JOIN usuarios u ON u.id = s.usuario_id WHERE u.email = ?",
+                    Integer.class,
+                    email
+            );
+            assertThat(sessoesAposReset).isZero();
+
+            api.authenticate(tokenAntigo);
+            ResponseEntity<JsonNode> meComTokenAntigo = api.get("/usuarios/me");
+            assertThat(meComTokenAntigo.getStatusCode().value()).isIn(401, 403);
+            api.logout();
+
             ResponseEntity<JsonNode> loginAntigo = api.post(
                     "/usuarios/login",
                     LoginUsuarioInputDTO.builder().email(email).senha(Fixtures.VALID_PASSWORD).build()
             );
-            assertErrorDetailContains(loginAntigo, HttpStatus.BAD_REQUEST, "E-mail ou senha inválidos");
+            assertErrorDetailContains(loginAntigo, HttpStatus.BAD_REQUEST, "Usuário ou senha inválidos");
 
             ResponseEntity<JsonNode> loginNovo = api.post(
                     "/usuarios/login",
                     LoginUsuarioInputDTO.builder().email(email).senha(novaSenha).build()
             );
             assertSuccess(loginNovo, HttpStatus.OK);
-
-            api.authenticate(tokenAntigo);
-            ResponseEntity<JsonNode> meComTokenAntigo = api.get("/usuarios/me");
-            assertThat(meComTokenAntigo.getStatusCode().value()).isIn(401, 403);
+            assertThat(loginNovo.getBody().path("data").path("token").asText()).isNotBlank();
 
             Integer auditorias = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM auditoria_eventos WHERE evento = ?",

@@ -11,7 +11,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.laweact.config.JwtUtil;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
 import com.laweact.dto.advogado.AreaAtuacaoInputDTO;
@@ -52,6 +51,7 @@ import com.laweact.repository.PosGraduacaoAdvogadoRepository;
 import com.laweact.repository.SubespecialidadeRepository;
 import com.laweact.repository.UsuarioRepository;
 import com.laweact.service.AdvogadoService;
+import com.laweact.service.SessaoService;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -81,7 +81,7 @@ public class AdvogadoServiceImp implements AdvogadoService {
     private final PosGraduacaoAdvogadoRepository posGraduacaoAdvogadoRepository;
     private final PasswordEncoder passwordEncoder;
     private final UsuarioDetailsServiceImp usuarioDetailsServiceImp;
-    private final JwtUtil jwtUtil;
+    private final SessaoService sessaoService;
     private final AdvogadoMapper advogadoMapper;
 
     @Override
@@ -183,7 +183,7 @@ public class AdvogadoServiceImp implements AdvogadoService {
         List<PosGraduacaoAdvogadoEntity> posGraduacoesSalvas = salvarPosGraduacoes(advogadoSalvo, input.posGraduacoes());
 
         UserDetails userDetails = usuarioDetailsServiceImp.loadUserByUsername(email);
-        String token = jwtUtil.generateToken(userDetails);
+        var tokens = sessaoService.criar(usuarioSalvo, userDetails, null);
 
         log.info("Advogado cadastrado: {}", email);
         return advogadoMapper.toCadastrarResponse(
@@ -196,7 +196,8 @@ public class AdvogadoServiceImp implements AdvogadoService {
                 especialidadesSalvas,
                 cobrancasSalvas,
                 posGraduacoesSalvas,
-                token
+                tokens.token(),
+                tokens.refreshToken()
         );
     }
 

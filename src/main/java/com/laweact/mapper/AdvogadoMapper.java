@@ -147,7 +147,8 @@ public class AdvogadoMapper {
             List<AdvogadoEspecialidadeEntity> especialidades,
             List<AdvogadoFormaCobrancaEntity> formasCobranca,
             List<PosGraduacaoAdvogadoEntity> posGraduacoes,
-            String token
+            String token,
+            String refreshToken
     ) {
         EnderecoResponseDTO enderecoResponse = clienteMapper.toEnderecoResponse(endereco);
         return CadastrarAdvogadoResponseDTO.builder()
@@ -161,6 +162,7 @@ public class AdvogadoMapper {
                 .formasCobranca(formasCobranca.stream().map(this::toFormaCobrancaResponse).toList())
                 .posGraduacoes(posGraduacoes.stream().map(this::toPosGraduacaoResponse).toList())
                 .token(token)
+                .refreshToken(refreshToken)
                 .build();
     }
 }

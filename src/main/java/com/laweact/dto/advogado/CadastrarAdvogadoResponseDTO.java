@@ -20,5 +20,6 @@ public record CadastrarAdvogadoResponseDTO(
         @NotNull List<EspecialidadeResponseDTO> especialidades,
         @NotNull List<CatalogoItemResponseDTO> formasCobranca,
         @NotNull List<PosGraduacaoResponseDTO> posGraduacoes,
-        @NotBlank String token
+        @NotBlank String token,
+        @NotBlank String refreshToken
 ) {}

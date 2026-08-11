@@ -78,7 +78,8 @@ class TermosAceiteE2ETest extends BaseE2ETest {
                 LoginUsuarioInputDTO.builder().email(email).senha(Fixtures.VALID_PASSWORD).build()
         );
         assertThat(login.getBody().path("data").path("usuario").path("termosAceitos").asBoolean()).isTrue();
-        assertThat(login.getBody().path("data").path("usuario").path("termosVersao").asText()).isEqualTo("v1");
+        assertThat(login.getBody().path("data").path("usuario").has("termosVersao")).isFalse();
+        assertThat(login.getBody().path("data").path("usuario").has("termosAceitosEm")).isFalse();
     }
 
     @Test

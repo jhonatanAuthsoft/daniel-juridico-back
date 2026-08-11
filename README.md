@@ -120,13 +120,35 @@ curl -s -X POST http://localhost:8080/advogados/cadastrar \
   }'
 ```
 
-### Login
+### Catálogo — especialidades
+
+Fonte única para o front (cadastro de advogado / filtros):
+
+```bash
+curl -s http://localhost:8080/catalogos/especialidades
+```
+
+Retorna lista de `{ codigo, nome, subespecialidades: [{ codigo, nome }] }`.
 
 ```bash
 curl -s -X POST http://localhost:8080/usuarios/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"maria@laweact.com","senha":"Secret12"}'
 ```
+
+Retorna `token` (access, 1h) e `refreshToken` (7d).
+
+### Refresh token
+
+Quando o access estiver perto de expirar (&lt; 2 min no front), chame:
+
+```bash
+curl -s -X POST http://localhost:8080/usuarios/refresh \
+  -H 'Content-Type: application/json' \
+  -d '{"token":"<access>","refreshToken":"<refresh>"}'
+```
+
+Retorna um novo par `token` + `refreshToken`.
 
 ### Recuperação de senha
 
@@ -172,7 +194,9 @@ docker compose up -d db-test
 Cobertura:
 - `POST /clientes/cadastrar` — sucesso, e-mail/documento duplicados, validações de senha/e-mail, CPF/CNPJ
 - `POST /advogados/cadastrar` — sucesso, e-mail/CPF/OAB duplicados, modalidades
-- `POST /usuarios/login` — cliente/advogado, JWT em `/me`, senha/e-mail inválidos
+- `GET /catalogos/especialidades` — especialidades + subespecialidades (público)
+- `POST /usuarios/login` — cliente/advogado, JWT + refreshToken, senha/e-mail inválidos
+- `POST /usuarios/refresh` — renova access (1h) + refresh (7d); rejeita refresh inválido / subjects divergentes
 - `POST /usuarios/aceitar-termos` — registra aceite; `usuario.termosAceitos` no login/cadastro
 - `POST /usuarios/recuperar-senha` — genérico (inexistente/inativo), envio, cooldown, invalidação de código anterior
 - `POST /usuarios/validar-codigo-recuperacao` — válido (sem consumir), inválido, expirado, formato

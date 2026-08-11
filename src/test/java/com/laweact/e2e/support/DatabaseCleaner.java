@@ -31,6 +31,7 @@ public class DatabaseCleaner {
                   tokens_recuperacao_senha,
                   auditoria_eventos,
                   tokens_revogados,
+                  sessoes,
                   usuarios
                 RESTART IDENTITY CASCADE
                 """);

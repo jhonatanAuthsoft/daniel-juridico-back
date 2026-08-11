@@ -7,7 +7,6 @@ import com.laweact.dto.cliente.ClienteDetalheResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
-import com.laweact.model.entity.TermosAceiteEntity;
 import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.service.TermosAceiteService;
 
@@ -30,8 +29,6 @@ public class UsuarioMapper {
                 .perfil(usuario.getPerfil())
                 .telefone(usuario.getTelefone())
                 .termosAceitos(ultimoAceite.isPresent())
-                .termosAceitosEm(ultimoAceite.map(TermosAceiteEntity::getAceitoEm).orElse(null))
-                .termosVersao(ultimoAceite.map(TermosAceiteEntity::getVersao).orElse(null))
                 .build();
     }
 
@@ -39,13 +36,15 @@ public class UsuarioMapper {
             UsuarioEntity usuario,
             ClienteDetalheResponseDTO cliente,
             AdvogadoDetalheResponseDTO advogado,
-            String token
+            String token,
+            String refreshToken
     ) {
         return LoginUsuarioResponseDTO.builder()
                 .usuario(toResponseDTO(usuario))
                 .cliente(cliente)
                 .advogado(advogado)
                 .token(token)
+                .refreshToken(refreshToken)
                 .build();
     }
 

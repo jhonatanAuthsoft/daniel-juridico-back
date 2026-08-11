@@ -45,11 +45,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/usuarios/login",
+                                "/usuarios/refresh",
                                 "/usuarios/recuperar-senha",
                                 "/usuarios/validar-codigo-recuperacao",
                                 "/usuarios/redefinir-senha",
                                 "/clientes/cadastrar",
                                 "/advogados/cadastrar",
+                                "/catalogos/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",

@@ -27,6 +27,7 @@ import com.laweact.repository.UsuarioRepository;
 import com.laweact.service.AuditoriaService;
 import com.laweact.service.EmailService;
 import com.laweact.service.RecuperacaoSenhaService;
+import com.laweact.service.SessaoService;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +50,7 @@ public class RecuperacaoSenhaServiceImp implements RecuperacaoSenhaService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final AuditoriaService auditoriaService;
+    private final SessaoService sessaoService;
 
     @Override
     @Transactional
@@ -223,8 +225,8 @@ public class RecuperacaoSenhaServiceImp implements RecuperacaoSenhaService {
                 ));
 
         usuario.setSenha(passwordEncoder.encode(input.novaSenha()));
-        usuario.setTokensInvalidosAntes(LocalDateTime.now());
-        usuarioRepository.save(usuario);
+        usuarioRepository.saveAndFlush(usuario);
+        sessaoService.encerrarTodasDoUsuario(usuario.getId());
 
         token.setUsadoEm(LocalDateTime.now());
         tokenRecuperacaoSenhaRepository.save(token);
@@ -239,7 +241,7 @@ public class RecuperacaoSenhaServiceImp implements RecuperacaoSenhaService {
                 usuario.getId(),
                 inputAudit,
                 response,
-                Map.of("acao", "SENHA_REDEFINIDA", "resultado", "OK", "sessoesInvalidadas", true)
+                Map.of("acao", "SENHA_REDEFINIDA", "resultado", "OK", "sessoesEncerradas", true)
         );
 
         return response;

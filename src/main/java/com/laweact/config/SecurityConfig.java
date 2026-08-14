@@ -49,6 +49,7 @@ public class SecurityConfig {
                                 "/usuarios/recuperar-senha",
                                 "/usuarios/validar-codigo-recuperacao",
                                 "/usuarios/redefinir-senha",
+                                "/usuarios/email-disponivel",
                                 "/clientes/cadastrar",
                                 "/advogados/cadastrar",
                                 "/arquivos/url-upload",

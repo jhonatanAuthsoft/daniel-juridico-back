@@ -4,6 +4,7 @@ import com.laweact.config.JwtUtil;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
 import com.laweact.dto.cliente.ClienteDetalheResponseDTO;
+import com.laweact.dto.usuario.EmailDisponivelResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
@@ -181,6 +182,20 @@ public class UsuarioServiceImp implements UsuarioService {
         }
 
         return usuarioMapper.toMeResponse(usuario, cliente, advogado);
+    }
+
+    @Override
+    @Transactional
+    public EmailDisponivelResponseDTO verificarEmailDisponivel(String email) {
+        if (email == null || email.isBlank()) {
+            throw new CustomError("E-mail é obrigatório", HttpStatus.BAD_REQUEST, "INVALID_REQUEST");
+        }
+
+        String normalized = email.trim().toLowerCase();
+        boolean disponivel = !usuarioRepository.existsByEmail(normalized);
+        return EmailDisponivelResponseDTO.builder()
+                .disponivel(disponivel)
+                .build();
     }
 
     @Override

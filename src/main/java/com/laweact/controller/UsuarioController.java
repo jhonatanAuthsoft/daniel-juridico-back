@@ -19,6 +19,7 @@ import com.laweact.dto.shared.ApiResponse;
 import com.laweact.dto.shared.PaginationInfo;
 import com.laweact.dto.usuario.AceitarTermosInputDTO;
 import com.laweact.dto.usuario.AceitarTermosResponseDTO;
+import com.laweact.dto.usuario.EmailDisponivelResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
@@ -132,6 +133,18 @@ public class UsuarioController {
         String token = authorizationHeader.substring(7);
         usuarioService.logout(token);
         return ResponseEntity.ok(ApiResponse.success(true, "Operação realizada com sucesso"));
+    }
+
+    @GetMapping("/email-disponivel")
+    @Operation(
+            summary = "Verificar disponibilidade de e-mail",
+            description = "Indica se o e-mail já está cadastrado (uso no cadastro de cliente/advogado)"
+    )
+    public ResponseEntity<ApiResponse<EmailDisponivelResponseDTO>> verificarEmailDisponivel(
+            @RequestParam String email
+    ) {
+        EmailDisponivelResponseDTO response = usuarioService.verificarEmailDisponivel(email);
+        return ResponseEntity.ok(ApiResponse.success(response, "Consulta realizada com sucesso"));
     }
 
     @GetMapping("/me")

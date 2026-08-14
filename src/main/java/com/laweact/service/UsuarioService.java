@@ -3,6 +3,7 @@ package com.laweact.service;
 import java.util.List;
 import java.util.UUID;
 
+import com.laweact.dto.usuario.EmailDisponivelResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
@@ -20,6 +21,8 @@ public interface UsuarioService {
     void logout(String token);
 
     MeResponseDTO obterUsuarioAutenticado();
+
+    EmailDisponivelResponseDTO verificarEmailDisponivel(String email);
 
     void excluir(UUID id);
 

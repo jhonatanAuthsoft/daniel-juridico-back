@@ -15,6 +15,8 @@ import com.laweact.model.entity.UsuarioEntity;
 public interface UsuarioRepository extends JpaRepository<UsuarioEntity, UUID> {
     Optional<UsuarioEntity> findByEmail(String email);
 
+    boolean existsByEmail(String email);
+
     @Query(
         value = """
           SELECT u.*

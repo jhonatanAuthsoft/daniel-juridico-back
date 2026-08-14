@@ -34,7 +34,8 @@ jobs:
         with:
           images: ${{ env.DOCKER_IMAGE }}
           tags: |
-            type=raw,value=develop
+            type=raw,value=develop-latest
+            type=raw,value=develop-{{sha}}
 
       - name: Build and push Docker image
         id: build

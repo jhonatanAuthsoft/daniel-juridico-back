@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import org.springframework.security.core.GrantedAuthority;
@@ -25,6 +26,7 @@ import java.util.List;
 
 @Builder
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
@@ -58,6 +60,10 @@ public class UsuarioEntity extends BaseEntity implements UserDetails, Serializab
 
     @Column(name = "bloqueado_ate")
     private LocalDateTime bloqueadoAte;
+
+    @Builder.Default
+    @Column(name = "notificacoes_push_habilitadas", nullable = false)
+    private Boolean notificacoesPushHabilitadas = true;
 
     @Override
     @JsonIgnore

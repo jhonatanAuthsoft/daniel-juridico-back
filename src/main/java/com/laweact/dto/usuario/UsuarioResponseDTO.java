@@ -17,5 +17,6 @@ public record UsuarioResponseDTO(
         @NotNull StatusUsuarioEnum status,
         @NotNull PerfilUsuarioEnum perfil,
         String telefone,
-        @NotNull Boolean termosAceitos
+        @NotNull Boolean termosAceitos,
+        @NotNull Boolean notificacoesPushHabilitadas
 ) {}

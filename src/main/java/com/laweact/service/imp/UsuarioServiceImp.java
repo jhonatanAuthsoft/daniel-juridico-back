@@ -4,10 +4,12 @@ import com.laweact.config.JwtUtil;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
 import com.laweact.dto.cliente.ClienteDetalheResponseDTO;
+import com.laweact.dto.usuario.AtualizarPreferenciasInputDTO;
 import com.laweact.dto.usuario.EmailDisponivelResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
+import com.laweact.dto.usuario.PreferenciasResponseDTO;
 import com.laweact.dto.usuario.RefreshTokenInputDTO;
 import com.laweact.dto.usuario.RefreshTokenResponseDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
@@ -182,6 +184,25 @@ public class UsuarioServiceImp implements UsuarioService {
         }
 
         return usuarioMapper.toMeResponse(usuario, cliente, advogado);
+    }
+
+    @Override
+    @Transactional
+    public PreferenciasResponseDTO atualizarPreferenciasDoUsuarioAutenticado(AtualizarPreferenciasInputDTO input) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!(principal instanceof UserDetails userDetails)) {
+            throw new CustomError("Usuário não autenticado", HttpStatus.UNAUTHORIZED);
+        }
+
+        UsuarioEntity usuario = usuarioRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
+
+        usuario.setNotificacoesPushHabilitadas(input.notificacoesPushHabilitadas());
+        usuarioRepository.save(usuario);
+
+        return PreferenciasResponseDTO.builder()
+                .notificacoesPushHabilitadas(usuario.getNotificacoesPushHabilitadas())
+                .build();
     }
 
     @Override

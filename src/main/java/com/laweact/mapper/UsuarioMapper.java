@@ -29,6 +29,7 @@ public class UsuarioMapper {
                 .perfil(usuario.getPerfil())
                 .telefone(usuario.getTelefone())
                 .termosAceitos(ultimoAceite.isPresent())
+                .notificacoesPushHabilitadas(Boolean.TRUE.equals(usuario.getNotificacoesPushHabilitadas()))
                 .build();
     }
 

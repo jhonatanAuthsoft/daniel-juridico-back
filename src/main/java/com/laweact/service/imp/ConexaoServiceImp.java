@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.conexao.ConexaoResponseDTO;
 import com.laweact.dto.conexao.CriarConexaoInputDTO;
+import com.laweact.event.ConexaoAceitaEvent;
+import com.laweact.event.ConexaoSolicitadaEvent;
 import com.laweact.model.entity.AdvogadoEntity;
 import com.laweact.model.entity.ClienteEntity;
 import com.laweact.model.entity.ConexaoEntity;
@@ -48,6 +51,7 @@ public class ConexaoServiceImp implements ConexaoService {
     private final ClienteRepository clienteRepository;
     private final AdvogadoRepository advogadoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     @Transactional
@@ -130,7 +134,16 @@ public class ConexaoServiceImp implements ConexaoService {
                 cliente.getUsuarioId(),
                 advogado.getUsuarioId()
         );
-        return toResponse(carregarDetalhada(salva.getId()));
+
+        ConexaoEntity detalhada = carregarDetalhada(salva.getId());
+        applicationEventPublisher.publishEvent(new ConexaoSolicitadaEvent(
+                detalhada.getId(),
+                detalhada.getCliente().getUsuarioId(),
+                detalhada.getAdvogado().getUsuarioId(),
+                detalhada.getCliente().getNomeCompleto(),
+                detalhada.getSolicitacao().getTitulo()
+        ));
+        return toResponse(detalhada);
     }
 
     @Override
@@ -171,6 +184,13 @@ public class ConexaoServiceImp implements ConexaoService {
             solicitacaoRepository.save(solicitacao);
         }
 
+        applicationEventPublisher.publishEvent(new ConexaoAceitaEvent(
+                conexao.getId(),
+                conexao.getCliente().getUsuarioId(),
+                conexao.getAdvogado().getUsuarioId(),
+                conexao.getAdvogado().getNomeCompleto(),
+                conexao.getSolicitacao().getTitulo()
+        ));
         return toResponse(conexao);
     }
 

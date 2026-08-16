@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,10 +20,12 @@ import com.laweact.dto.shared.ApiResponse;
 import com.laweact.dto.shared.PaginationInfo;
 import com.laweact.dto.usuario.AceitarTermosInputDTO;
 import com.laweact.dto.usuario.AceitarTermosResponseDTO;
+import com.laweact.dto.usuario.AtualizarPreferenciasInputDTO;
 import com.laweact.dto.usuario.EmailDisponivelResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
+import com.laweact.dto.usuario.PreferenciasResponseDTO;
 import com.laweact.dto.usuario.RedefinirSenhaInputDTO;
 import com.laweact.dto.usuario.RedefinirSenhaResponseDTO;
 import com.laweact.dto.usuario.RefreshTokenInputDTO;
@@ -39,6 +42,7 @@ import com.laweact.service.TermosAceiteService;
 import com.laweact.service.UsuarioService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -149,9 +153,23 @@ public class UsuarioController {
 
     @GetMapping("/me")
     @Operation(summary = "Usuário autenticado", description = "Retorna o usuário logado com detalhe do perfil (cliente ou advogado)")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiResponse<MeResponseDTO>> me() {
         MeResponseDTO response = usuarioService.obterUsuarioAutenticado();
         return ResponseEntity.ok(ApiResponse.success(response, "Consulta realizada com sucesso"));
+    }
+
+    @PatchMapping("/me/preferencias")
+    @Operation(
+            summary = "Atualizar preferências",
+            description = "Atualiza preferências do usuário autenticado (ex.: notificações push)"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<PreferenciasResponseDTO>> atualizarPreferencias(
+            @Valid @RequestBody AtualizarPreferenciasInputDTO input
+    ) {
+        PreferenciasResponseDTO response = usuarioService.atualizarPreferenciasDoUsuarioAutenticado(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Preferências atualizadas com sucesso"));
     }
 
     @DeleteMapping("/excluir/{id}")

@@ -35,12 +35,20 @@ public class ApiClient {
         return restTemplate.exchange(path, HttpMethod.POST, jsonEntity(body), JsonNode.class);
     }
 
+    public ResponseEntity<JsonNode> patch(String path, Object body) {
+        return restTemplate.exchange(path, HttpMethod.PATCH, jsonEntity(body), JsonNode.class);
+    }
+
     public ResponseEntity<JsonNode> get(String path) {
         return restTemplate.exchange(path, HttpMethod.GET, jsonEntity(null), JsonNode.class);
     }
 
     public ResponseEntity<JsonNode> delete(String path) {
         return restTemplate.exchange(path, HttpMethod.DELETE, jsonEntity(null), JsonNode.class);
+    }
+
+    public ResponseEntity<JsonNode> delete(String path, Object body) {
+        return restTemplate.exchange(path, HttpMethod.DELETE, jsonEntity(body), JsonNode.class);
     }
 
     private HttpEntity<?> jsonEntity(Object body) {

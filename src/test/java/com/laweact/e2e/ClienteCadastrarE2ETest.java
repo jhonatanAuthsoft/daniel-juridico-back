@@ -62,6 +62,7 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
         assertThat(clienteDb.getProfissao()).isEqualTo("Analista");
         assertThat(clienteDb.getRgOrgaoEmissor()).isEqualTo("SSP");
         assertThat(clienteDb.getRgUf()).isEqualTo("SP");
+        assertThat(clienteDb.getFotoUrl()).isNull();
         assertThat(data.path("cliente").path("rgOrgaoEmissor").asText()).isEqualTo("SSP");
         assertThat(data.path("cliente").path("rgUf").asText()).isEqualTo("SP");
 

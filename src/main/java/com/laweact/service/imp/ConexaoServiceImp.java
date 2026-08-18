@@ -1,5 +1,6 @@
 package com.laweact.service.imp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
@@ -19,16 +20,20 @@ import com.laweact.dto.conexao.CriarConexaoInputDTO;
 import com.laweact.event.ConexaoAceitaEvent;
 import com.laweact.event.ConexaoSolicitadaEvent;
 import com.laweact.model.entity.AdvogadoEntity;
+import com.laweact.model.entity.AvaliacaoAdvogadoEntity;
 import com.laweact.model.entity.ClienteEntity;
 import com.laweact.model.entity.ConexaoEntity;
+import com.laweact.model.entity.EnderecoEntity;
 import com.laweact.model.entity.SolicitacaoEntity;
 import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.model.enums.PerfilUsuarioEnum;
 import com.laweact.model.enums.StatusConexaoEnum;
 import com.laweact.model.enums.StatusSolicitacaoEnum;
 import com.laweact.repository.AdvogadoRepository;
+import com.laweact.repository.AvaliacaoAdvogadoRepository;
 import com.laweact.repository.ClienteRepository;
 import com.laweact.repository.ConexaoRepository;
+import com.laweact.repository.EnderecoRepository;
 import com.laweact.repository.SolicitacaoMatchRepository;
 import com.laweact.repository.SolicitacaoRepository;
 import com.laweact.repository.UsuarioRepository;
@@ -51,6 +56,8 @@ public class ConexaoServiceImp implements ConexaoService {
     private final ClienteRepository clienteRepository;
     private final AdvogadoRepository advogadoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final EnderecoRepository enderecoRepository;
+    private final AvaliacaoAdvogadoRepository avaliacaoAdvogadoRepository;
     private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
@@ -281,12 +288,26 @@ public class ConexaoServiceImp implements ConexaoService {
 
     private ConexaoResponseDTO toResponse(ConexaoEntity entity) {
         boolean aceita = entity.getStatus() == StatusConexaoEnum.ACEITA;
+        SolicitacaoEntity solicitacao = entity.getSolicitacao();
+        ClienteEntity cliente = entity.getCliente();
         UsuarioEntity usuarioAdvogado = entity.getAdvogado().getUsuario();
+        UsuarioEntity usuarioCliente = cliente.getUsuario();
+        EnderecoEntity enderecoCliente = enderecoRepository
+                .findByUsuario_Id(cliente.getUsuarioId())
+                .orElse(null);
+
+        AvaliacaoAdvogadoEntity avaliacaoCliente = avaliacaoAdvogadoRepository
+                .findByAdvogado_UsuarioIdAndCliente_UsuarioId(
+                        entity.getAdvogado().getUsuarioId(),
+                        cliente.getUsuarioId())
+                .orElse(null);
+        BigDecimal avaliacaoNota = avaliacaoCliente != null ? avaliacaoCliente.getNota() : null;
+        String avaliacaoComentario = avaliacaoCliente != null ? avaliacaoCliente.getComentario() : null;
 
         return ConexaoResponseDTO.builder()
                 .id(entity.getId())
-                .solicitacaoId(entity.getSolicitacao().getId())
-                .clienteId(entity.getCliente().getUsuarioId())
+                .solicitacaoId(solicitacao.getId())
+                .clienteId(cliente.getUsuarioId())
                 .advogadoId(entity.getAdvogado().getUsuarioId())
                 .status(entity.getStatus())
                 .criadoEm(entity.getCreatedAt())
@@ -295,8 +316,28 @@ public class ConexaoServiceImp implements ConexaoService {
                 .telefone(aceita ? usuarioAdvogado.getTelefone() : null)
                 .email(aceita ? usuarioAdvogado.getEmail() : null)
                 .nomeAdvogado(entity.getAdvogado().getNomeCompleto())
-                .nomeCliente(entity.getCliente().getNomeCompleto())
-                .tituloSolicitacao(entity.getSolicitacao().getTitulo())
+                .nomeCliente(cliente.getNomeCompleto())
+                .tituloSolicitacao(solicitacao.getTitulo())
+                .descricaoSolicitacao(solicitacao.getDescricao())
+                .urgencia(solicitacao.getUrgencia())
+                .modalidade(solicitacao.getModalidade())
+                .especialidadeCodigo(solicitacao.getEspecialidadeCodigo())
+                .subespecialidadeCodigo(solicitacao.getSubespecialidadeCodigo())
+                .experienciaMinimaMeses(solicitacao.getExperienciaMinimaMeses())
+                .uf(solicitacao.getUf())
+                .cidade(solicitacao.getCidade())
+                .formaCobranca(solicitacao.getFormaCobranca())
+                .clienteProfissao(cliente.getProfissao())
+                .clientePronomes(cliente.getPronomes() != null ? cliente.getPronomes().name() : null)
+                .clienteEstadoCivil(cliente.getEstadoCivil())
+                .clienteFaixaRenda(cliente.getFaixaRenda())
+                .clienteFotoUrl(cliente.getFotoUrl())
+                .clienteCidade(enderecoCliente != null ? enderecoCliente.getCidade() : null)
+                .clienteUf(enderecoCliente != null ? enderecoCliente.getEstado() : null)
+                .clienteTelefone(aceita && usuarioCliente != null ? usuarioCliente.getTelefone() : null)
+                .clienteEmail(aceita && usuarioCliente != null ? usuarioCliente.getEmail() : null)
+                .avaliacaoClienteNota(avaliacaoNota)
+                .avaliacaoClienteComentario(avaliacaoComentario)
                 .build();
     }
 

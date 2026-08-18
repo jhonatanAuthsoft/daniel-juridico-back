@@ -60,6 +60,7 @@ public record CadastrarAdvogadoInputDTO(
         @NotBlank(message = "O telefone é obrigatório")
         String telefone,
 
+        @NotBlank(message = "A foto de perfil é obrigatória")
         String fotoUrl,
 
         @NotBlank(message = "A universidade é obrigatória")

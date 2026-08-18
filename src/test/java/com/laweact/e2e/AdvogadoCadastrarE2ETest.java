@@ -59,6 +59,7 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
 
         AdvogadoEntity advogadoDb = advogadoRepository.findByUsuarioId(usuarioDb.getId()).orElseThrow();
         assertThat(advogadoDb.getCpf()).isEqualTo(cpf);
+        assertThat(advogadoDb.getFotoUrl()).isEqualTo(input.fotoUrl());
         assertThat(advogadoDb.getStatusVerificacao()).isEqualTo(StatusVerificacaoEnum.PENDENTE);
 
         Integer oabs = jdbcTemplate.queryForObject(
@@ -201,6 +202,41 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
         }
     }
 
+    @Nested
+    @DisplayName("foto de perfil")
+    class FotoPerfil {
+
+        @Test
+        @DisplayName("deve rejeitar cadastro sem foto de perfil")
+        void shouldFailWhenFotoUrlMissing() {
+            CadastrarAdvogadoInputDTO input = copyAdvogado(
+                    Fixtures.advogadoValido("joao.semfoto@laweact.com", "39053344705", "600001")
+            )
+                    .fotoUrl(null)
+                    .build();
+
+            ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
+
+            assertErrorDetailContains(response, HttpStatus.UNPROCESSABLE_ENTITY, "foto de perfil");
+            assertThat(usuarioRepository.count()).isZero();
+        }
+
+        @Test
+        @DisplayName("deve rejeitar cadastro com foto de perfil em branco")
+        void shouldFailWhenFotoUrlBlank() {
+            CadastrarAdvogadoInputDTO input = copyAdvogado(
+                    Fixtures.advogadoValido("joao.fotobranco@laweact.com", "39053344705", "600002")
+            )
+                    .fotoUrl("   ")
+                    .build();
+
+            ResponseEntity<JsonNode> response = api.post("/advogados/cadastrar", input);
+
+            assertErrorDetailContains(response, HttpStatus.UNPROCESSABLE_ENTITY, "foto de perfil");
+            assertThat(usuarioRepository.count()).isZero();
+        }
+    }
+
     @Test
     @DisplayName("deve aceitar cadastro sem nome do pai")
     void shouldCreateAdvogadoWithoutNomePai() {
@@ -310,6 +346,7 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
                 .nomeMae(base.nomeMae())
                 .pronomeTratamento(base.pronomeTratamento())
                 .telefone(base.telefone())
+                .fotoUrl(base.fotoUrl())
                 .universidade(base.universidade())
                 .curso(base.curso())
                 .anoFormacao(base.anoFormacao())

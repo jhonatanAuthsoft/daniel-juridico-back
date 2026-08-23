@@ -1,5 +1,6 @@
 package com.laweact.repository;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -11,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 
 import com.laweact.model.entity.ConexaoEntity;
 import com.laweact.model.enums.StatusConexaoEnum;
+import com.laweact.model.enums.UrgenciaSolicitacaoEnum;
 
 public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
 
@@ -87,5 +89,26 @@ public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
             UUID clienteId,
             UUID advogadoId,
             StatusConexaoEnum status
+    );
+
+    @Query("""
+            select c from ConexaoEntity c
+            join fetch c.advogado a
+            join fetch a.usuario
+            join fetch c.cliente cl
+            join fetch cl.usuario
+            join fetch c.solicitacao s
+            where c.status = :status
+              and s.urgencia in :urgencias
+              and (
+                    (c.ultimoLembreteInsistenteEm is null and c.createdAt <= :limite)
+                 or (c.ultimoLembreteInsistenteEm is not null and c.ultimoLembreteInsistenteEm <= :limite)
+              )
+            order by c.createdAt asc
+            """)
+    List<ConexaoEntity> findPendentesParaLembreteInsistente(
+            @Param("status") StatusConexaoEnum status,
+            @Param("urgencias") Collection<UrgenciaSolicitacaoEnum> urgencias,
+            @Param("limite") LocalDateTime limite
     );
 }

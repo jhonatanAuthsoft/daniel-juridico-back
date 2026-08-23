@@ -114,6 +114,33 @@ public class NotificacaoServiceImp implements NotificacaoService {
                 .statusEnvio(StatusEnvioNotificacaoEnum.PENDENTE)
                 .build());
 
+        return tentarEnviarPush(notificacao);
+    }
+
+    @Override
+    @Transactional
+    public NotificacaoEntity reinsistirEnvio(
+            NotificacaoEntity notificacao,
+            String titulo,
+            String texto
+    ) {
+        notificacao.setLidaEm(null);
+        notificacao.setTitulo(titulo);
+        notificacao.setTexto(texto);
+        notificacao.setStatusEnvio(StatusEnvioNotificacaoEnum.PENDENTE);
+        notificacao.setErroEnvio(null);
+        notificacao = notificacaoRepository.save(notificacao);
+        return tentarEnviarPush(notificacao);
+    }
+
+    private NotificacaoEntity tentarEnviarPush(NotificacaoEntity notificacao) {
+        UsuarioEntity destinatario = notificacao.getDestinatario();
+        UUID destinatarioId = destinatario.getId();
+        String titulo = notificacao.getTitulo();
+        String texto = notificacao.getTexto();
+        TipoNotificacaoEnum tipo = notificacao.getTipo();
+        UUID conexaoId = notificacao.getReferenciaId();
+
         if (!Boolean.TRUE.equals(destinatario.getNotificacoesPushHabilitadas())) {
             return marcarSkipped(notificacao);
         }

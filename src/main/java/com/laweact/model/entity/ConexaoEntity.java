@@ -49,4 +49,7 @@ public class ConexaoEntity extends BaseEntity {
 
     @Column(name = "cancelado_em")
     private LocalDateTime canceladoEm;
+
+    @Column(name = "ultimo_lembrete_insistente_em")
+    private LocalDateTime ultimoLembreteInsistenteEm;
 }

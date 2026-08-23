@@ -26,4 +26,9 @@ public interface NotificacaoService {
             String titulo,
             String texto
     );
+
+    /**
+     * Reuses an existing inbox row: clears read state, updates copy, retries Expo Push.
+     */
+    NotificacaoEntity reinsistirEnvio(NotificacaoEntity notificacao, String titulo, String texto);
 }

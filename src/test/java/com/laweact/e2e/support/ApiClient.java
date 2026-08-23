@@ -35,6 +35,22 @@ public class ApiClient {
         return restTemplate.exchange(path, HttpMethod.POST, jsonEntity(body), JsonNode.class);
     }
 
+    public ResponseEntity<JsonNode> postWithHeader(
+            String path,
+            Object body,
+            String headerName,
+            String headerValue
+    ) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+        if (headerName != null && headerValue != null) {
+            headers.set(headerName, headerValue);
+        }
+        HttpEntity<?> entity = body == null ? new HttpEntity<>(headers) : new HttpEntity<>(body, headers);
+        return restTemplate.exchange(path, HttpMethod.POST, entity, JsonNode.class);
+    }
+
     public ResponseEntity<JsonNode> patch(String path, Object body) {
         return restTemplate.exchange(path, HttpMethod.PATCH, jsonEntity(body), JsonNode.class);
     }

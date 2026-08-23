@@ -55,6 +55,7 @@ public class SecurityConfig {
                                 "/arquivos/url-upload",
                                 "/arquivos/url-leitura",
                                 "/catalogos/**",
+                                "/jobs/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",

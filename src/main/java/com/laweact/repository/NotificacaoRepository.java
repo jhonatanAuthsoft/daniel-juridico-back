@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.laweact.model.entity.NotificacaoEntity;
+import com.laweact.model.enums.TipoNotificacaoEnum;
 
 public interface NotificacaoRepository extends JpaRepository<NotificacaoEntity, UUID> {
 
@@ -23,6 +24,11 @@ public interface NotificacaoRepository extends JpaRepository<NotificacaoEntity, 
     boolean existsByDestinatario_IdAndLidaEmIsNull(UUID destinatarioId);
 
     Optional<NotificacaoEntity> findByIdAndDestinatario_Id(UUID id, UUID destinatarioId);
+
+    Optional<NotificacaoEntity> findFirstByReferenciaIdAndTipoOrderByCreatedAtAsc(
+            UUID referenciaId,
+            TipoNotificacaoEnum tipo
+    );
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""

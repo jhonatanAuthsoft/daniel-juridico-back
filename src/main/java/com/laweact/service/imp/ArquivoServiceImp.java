@@ -90,6 +90,24 @@ public class ArquivoServiceImp implements ArquivoService {
                 .build();
     }
 
+    @Override
+    public void validarKeyParaFinalidade(String key, ArquivoFinalidade finalidade) {
+        String normalized = key == null ? "" : key.trim();
+        if (!KEY_PERMITIDA.matcher(normalized).matches()) {
+            throw new CustomError("key inválida", HttpStatus.BAD_REQUEST, "INVALID_OBJECT_KEY");
+        }
+
+        String prefixo = finalidade.getPrefixo() + "/";
+        String prefixoSemTmp = prefixo.startsWith("tmp/") ? prefixo.substring(4) : prefixo;
+        if (!normalized.startsWith(prefixo) && !normalized.startsWith(prefixoSemTmp)) {
+            throw new CustomError(
+                    "A foto de perfil não corresponde ao tipo de usuário",
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_OBJECT_KEY"
+            );
+        }
+    }
+
     static String gerarKey(ArquivoFinalidade finalidade, String contentType) {
         String extensao = contentType.equals("image/png") ? "png" : "jpg";
         return finalidade.getPrefixo() + "/" + UUID.randomUUID() + "." + extensao;

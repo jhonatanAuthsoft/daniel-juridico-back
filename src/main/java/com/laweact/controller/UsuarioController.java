@@ -20,8 +20,12 @@ import com.laweact.dto.shared.ApiResponse;
 import com.laweact.dto.shared.PaginationInfo;
 import com.laweact.dto.usuario.AceitarTermosInputDTO;
 import com.laweact.dto.usuario.AceitarTermosResponseDTO;
+import com.laweact.dto.usuario.AtualizarFotoInputDTO;
 import com.laweact.dto.usuario.AtualizarPreferenciasInputDTO;
+import com.laweact.dto.usuario.AtualizarSenhaInputDTO;
+import com.laweact.dto.usuario.AtualizarSenhaResponseDTO;
 import com.laweact.dto.usuario.EmailDisponivelResponseDTO;
+import com.laweact.dto.usuario.FotoPerfilResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
@@ -170,6 +174,32 @@ public class UsuarioController {
     ) {
         PreferenciasResponseDTO response = usuarioService.atualizarPreferenciasDoUsuarioAutenticado(input);
         return ResponseEntity.ok(ApiResponse.success(response, "Preferências atualizadas com sucesso"));
+    }
+
+    @PatchMapping("/me/foto")
+    @Operation(
+            summary = "Atualizar foto de perfil",
+            description = "Atualiza a key S3 da foto de perfil do usuário autenticado (cliente ou advogado)"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<FotoPerfilResponseDTO>> atualizarFoto(
+            @Valid @RequestBody AtualizarFotoInputDTO input
+    ) {
+        FotoPerfilResponseDTO response = usuarioService.atualizarFotoDoUsuarioAutenticado(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Foto de perfil atualizada com sucesso"));
+    }
+
+    @PatchMapping("/me/senha")
+    @Operation(
+            summary = "Atualizar senha",
+            description = "Altera a senha do usuário autenticado informando a senha atual e a nova senha"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<AtualizarSenhaResponseDTO>> atualizarSenha(
+            @Valid @RequestBody AtualizarSenhaInputDTO input
+    ) {
+        AtualizarSenhaResponseDTO response = usuarioService.atualizarSenhaDoUsuarioAutenticado(input);
+        return ResponseEntity.ok(ApiResponse.success(response, response.mensagem()));
     }
 
     @DeleteMapping("/excluir/{id}")

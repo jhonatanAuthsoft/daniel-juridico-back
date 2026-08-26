@@ -3,8 +3,12 @@ package com.laweact.service;
 import java.util.List;
 import java.util.UUID;
 
+import com.laweact.dto.usuario.AtualizarFotoInputDTO;
 import com.laweact.dto.usuario.AtualizarPreferenciasInputDTO;
+import com.laweact.dto.usuario.AtualizarSenhaInputDTO;
+import com.laweact.dto.usuario.AtualizarSenhaResponseDTO;
 import com.laweact.dto.usuario.EmailDisponivelResponseDTO;
+import com.laweact.dto.usuario.FotoPerfilResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
@@ -25,6 +29,10 @@ public interface UsuarioService {
     MeResponseDTO obterUsuarioAutenticado();
 
     PreferenciasResponseDTO atualizarPreferenciasDoUsuarioAutenticado(AtualizarPreferenciasInputDTO input);
+
+    FotoPerfilResponseDTO atualizarFotoDoUsuarioAutenticado(AtualizarFotoInputDTO input);
+
+    AtualizarSenhaResponseDTO atualizarSenhaDoUsuarioAutenticado(AtualizarSenhaInputDTO input);
 
     EmailDisponivelResponseDTO verificarEmailDisponivel(String email);
 

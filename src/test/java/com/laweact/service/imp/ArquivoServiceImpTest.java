@@ -121,6 +121,41 @@ class ArquivoServiceImpTest {
     }
 
     @Test
+    @DisplayName("valida key da finalidade do perfil")
+    void shouldAcceptKeyForMatchingFinalidade() {
+        service.validarKeyParaFinalidade(
+                "tmp/clientes/perfil/11111111-1111-1111-1111-111111111111.jpg",
+                ArquivoFinalidade.CLIENTE_PERFIL
+        );
+    }
+
+    @Test
+    @DisplayName("rejeita key de outra finalidade")
+    void shouldRejectKeyForOtherFinalidade() {
+        assertThatThrownBy(() -> service.validarKeyParaFinalidade(
+                "tmp/advogados/perfil/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.png",
+                ArquivoFinalidade.CLIENTE_PERFIL
+        ))
+                .isInstanceOf(CustomError.class)
+                .satisfies(ex -> {
+                    CustomError err = (CustomError) ex;
+                    assertThat(err.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(err.getErrorCode()).isEqualTo("INVALID_OBJECT_KEY");
+                });
+    }
+
+    @Test
+    @DisplayName("rejeita key fora do padrão na validação de finalidade")
+    void shouldRejectMalformedKeyForFinalidade() {
+        assertThatThrownBy(() -> service.validarKeyParaFinalidade(
+                "tmp/clientes/perfil/joao.jpg",
+                ArquivoFinalidade.CLIENTE_PERFIL
+        ))
+                .isInstanceOf(CustomError.class)
+                .satisfies(ex -> assertThat(((CustomError) ex).getErrorCode()).isEqualTo("INVALID_OBJECT_KEY"));
+    }
+
+    @Test
     @DisplayName("falha com 503 quando S3 está desabilitado")
     void shouldFailWhenS3Disabled() {
         AwsS3Properties props = new AwsS3Properties();

@@ -1,11 +1,15 @@
 package com.laweact.service.imp;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.laweact.config.exception.CustomError;
+import com.laweact.dto.cliente.AtualizarDadosGeraisClienteInputDTO;
+import com.laweact.dto.cliente.AtualizarEnderecoClienteInputDTO;
+import com.laweact.dto.cliente.AtualizarPerfilPessoalClienteInputDTO;
 import com.laweact.dto.cliente.CadastrarClienteInputDTO;
 import com.laweact.dto.cliente.CadastrarClienteResponseDTO;
 import com.laweact.dto.cliente.ClienteDetalheResponseDTO;
@@ -116,11 +120,113 @@ public class ClienteServiceImp implements ClienteService {
         );
     }
 
+    @Override
+    @Transactional
+    public ClienteDetalheResponseDTO atualizarDadosGerais(AtualizarDadosGeraisClienteInputDTO input) {
+        UsuarioEntity usuario = obterClienteAutenticado();
+        String nome = requireNome(input.nomeCompleto());
+
+        ClienteEntity cliente = obterCliente(usuario.getId());
+        usuario.setNomeCompleto(nome);
+        cliente.setNomeCompleto(nome);
+        if (cliente.getTipoDocumento() == TipoDocumentoEnum.CNPJ) {
+            cliente.setRazaoSocial(nome);
+        }
+
+        usuarioRepository.save(usuario);
+        clienteRepository.save(cliente);
+        return detalhe(cliente, usuario.getId());
+    }
+
+    @Override
+    @Transactional
+    public ClienteDetalheResponseDTO atualizarEndereco(AtualizarEnderecoClienteInputDTO input) {
+        UsuarioEntity usuario = obterClienteAutenticado();
+        ClienteEntity cliente = obterCliente(usuario.getId());
+        EnderecoEntity endereco = enderecoRepository.findByUsuario_Id(usuario.getId())
+                .orElseThrow(() -> new CustomError("Endereço não encontrado", HttpStatus.NOT_FOUND));
+
+        endereco.setCep(normalizarCep(input.cep()));
+        endereco.setLogradouro(input.logradouro().trim());
+        endereco.setNumero(input.numero().trim());
+        endereco.setComplemento(blankToNull(input.complemento()));
+        endereco.setBairro(input.bairro().trim());
+        endereco.setCidade(input.cidade().trim());
+        endereco.setEstado(input.estado().trim().toUpperCase());
+
+        enderecoRepository.save(endereco);
+        return clienteMapper.toDetalheResponse(cliente, endereco);
+    }
+
+    @Override
+    @Transactional
+    public ClienteDetalheResponseDTO atualizarPerfilPessoal(AtualizarPerfilPessoalClienteInputDTO input) {
+        UsuarioEntity usuario = obterClienteAutenticado();
+        ClienteEntity cliente = obterCliente(usuario.getId());
+
+        cliente.setPronomes(input.pronomes());
+        cliente.setEstadoCivil(blankToNull(input.estadoCivil()));
+        cliente.setFaixaRenda(blankToNull(input.faixaRenda()));
+
+        if (cliente.getTipoDocumento() == TipoDocumentoEnum.CNPJ) {
+            String area = firstNonBlank(input.areaAtuacao(), input.profissao());
+            if (isBlank(area)) {
+                throw new CustomError("A área de atuação é obrigatória para CNPJ", HttpStatus.BAD_REQUEST);
+            }
+            cliente.setAreaAtuacao(area);
+        } else {
+            if (isBlank(input.profissao())) {
+                throw new CustomError("A profissão é obrigatória para CPF", HttpStatus.BAD_REQUEST);
+            }
+            cliente.setProfissao(input.profissao().trim());
+        }
+
+        clienteRepository.save(cliente);
+        return detalhe(cliente, usuario.getId());
+    }
+
     public ClienteDetalheResponseDTO carregarDetalhe(java.util.UUID usuarioId) {
-        ClienteEntity cliente = clienteRepository.findByUsuarioId(usuarioId)
-                .orElseThrow(() -> new CustomError("Perfil de cliente não encontrado", HttpStatus.NOT_FOUND));
+        return detalhe(obterCliente(usuarioId), usuarioId);
+    }
+
+    private ClienteDetalheResponseDTO detalhe(ClienteEntity cliente, java.util.UUID usuarioId) {
         EnderecoEntity endereco = enderecoRepository.findByUsuario_Id(usuarioId).orElse(null);
         return clienteMapper.toDetalheResponse(cliente, endereco);
+    }
+
+    private UsuarioEntity obterClienteAutenticado() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!(principal instanceof UserDetails userDetails)) {
+            throw new CustomError("Usuário não autenticado", HttpStatus.UNAUTHORIZED);
+        }
+        UsuarioEntity usuario = usuarioRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
+        if (usuario.getPerfil() != PerfilUsuarioEnum.CLIENTE) {
+            throw new CustomError("Apenas clientes podem editar estes dados", HttpStatus.FORBIDDEN, "FORBIDDEN");
+        }
+        return usuario;
+    }
+
+    private ClienteEntity obterCliente(java.util.UUID usuarioId) {
+        return clienteRepository.findByUsuarioId(usuarioId)
+                .orElseThrow(() -> new CustomError("Perfil de cliente não encontrado", HttpStatus.NOT_FOUND));
+    }
+
+    private String requireNome(String nomeCompleto) {
+        if (isBlank(nomeCompleto)) {
+            throw new CustomError("O nome é obrigatório", HttpStatus.BAD_REQUEST);
+        }
+        return nomeCompleto.trim();
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        if (!isBlank(primary)) {
+            return primary.trim();
+        }
+        if (!isBlank(fallback)) {
+            return fallback.trim();
+        }
+        return null;
     }
 
     private void validarCamposPorTipoDocumento(CadastrarClienteInputDTO input) {

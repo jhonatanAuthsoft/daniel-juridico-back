@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,7 +15,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
 import com.laweact.dto.advogado.AdvogadoPerfilPublicoResponseDTO;
+import com.laweact.dto.advogado.AtualizarBiografiaAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarDadosGeraisAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarDocumentacaoAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarEnderecoAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarFormasCobrancaAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarGraduacaoAdvogadoInputDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoInputDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoResponseDTO;
 import com.laweact.dto.avaliacao.AvaliacaoItemResponseDTO;
@@ -53,6 +61,84 @@ public class AdvogadoController {
                 ApiResponse.success(response, "Advogado cadastrado com sucesso"),
                 HttpStatus.CREATED
         );
+    }
+
+    @PatchMapping("/me/dados-gerais")
+    @Operation(
+            summary = "Atualizar dados gerais",
+            description = "Atualiza o nome do advogado autenticado. CPF, RG e e-mail não são editáveis."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<AdvogadoDetalheResponseDTO>> atualizarDadosGerais(
+            @Valid @RequestBody AtualizarDadosGeraisAdvogadoInputDTO input
+    ) {
+        AdvogadoDetalheResponseDTO response = advogadoService.atualizarDadosGerais(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Dados gerais atualizados com sucesso"));
+    }
+
+    @PatchMapping("/me/endereco")
+    @Operation(
+            summary = "Atualizar endereço",
+            description = "Atualiza o endereço do advogado autenticado"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<AdvogadoDetalheResponseDTO>> atualizarEndereco(
+            @Valid @RequestBody AtualizarEnderecoAdvogadoInputDTO input
+    ) {
+        AdvogadoDetalheResponseDTO response = advogadoService.atualizarEndereco(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Endereço atualizado com sucesso"));
+    }
+
+    @PatchMapping("/me/formas-cobranca")
+    @Operation(
+            summary = "Atualizar formas de cobrança",
+            description = "Substitui as formas de cobrança do advogado autenticado"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<AdvogadoDetalheResponseDTO>> atualizarFormasCobranca(
+            @Valid @RequestBody AtualizarFormasCobrancaAdvogadoInputDTO input
+    ) {
+        AdvogadoDetalheResponseDTO response = advogadoService.atualizarFormasCobranca(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Formas de cobrança atualizadas com sucesso"));
+    }
+
+    @PatchMapping("/me/biografia")
+    @Operation(
+            summary = "Atualizar biografia",
+            description = "Atualiza o pronome de tratamento e a biografia do advogado autenticado"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<AdvogadoDetalheResponseDTO>> atualizarBiografia(
+            @Valid @RequestBody AtualizarBiografiaAdvogadoInputDTO input
+    ) {
+        AdvogadoDetalheResponseDTO response = advogadoService.atualizarBiografia(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Biografia atualizada com sucesso"));
+    }
+
+    @PatchMapping("/me/documentacao")
+    @Operation(
+            summary = "Atualizar documentação OAB",
+            description = "Substitui a OAB principal e as suplementares (máximo 5) do advogado autenticado"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<AdvogadoDetalheResponseDTO>> atualizarDocumentacao(
+            @Valid @RequestBody AtualizarDocumentacaoAdvogadoInputDTO input
+    ) {
+        AdvogadoDetalheResponseDTO response = advogadoService.atualizarDocumentacao(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Documentação atualizada com sucesso"));
+    }
+
+    @PatchMapping("/me/graduacao")
+    @Operation(
+            summary = "Atualizar graduação",
+            description = "Atualiza universidade, curso e ano de formação do advogado autenticado"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<AdvogadoDetalheResponseDTO>> atualizarGraduacao(
+            @Valid @RequestBody AtualizarGraduacaoAdvogadoInputDTO input
+    ) {
+        AdvogadoDetalheResponseDTO response = advogadoService.atualizarGraduacao(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Graduação atualizada com sucesso"));
     }
 
     @GetMapping("/{id}")

@@ -11,5 +11,7 @@ public interface OabRepository extends JpaRepository<OabEntity, UUID> {
 
     boolean existsByNumeroAndUf(String numero, String uf);
 
+    boolean existsByNumeroAndUfAndAdvogadoUsuarioIdNot(String numero, String uf, UUID advogadoId);
+
     List<OabEntity> findByAdvogadoUsuarioId(UUID advogadoId);
 }

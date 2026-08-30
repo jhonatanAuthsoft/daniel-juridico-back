@@ -22,6 +22,7 @@ import com.laweact.dto.advogado.AdvogadoPerfilPublicoResponseDTO;
 import com.laweact.dto.advogado.AreaAtuacaoInputDTO;
 import com.laweact.dto.advogado.AtualizarBiografiaAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDadosGeraisAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarDisponibilidadeAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDocumentacaoAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarEnderecoAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarFormasCobrancaAdvogadoInputDTO;
@@ -300,6 +301,17 @@ public class AdvogadoServiceImp implements AdvogadoService {
 
         advogado.setPronomeTratamento(input.pronomeTratamento());
         advogado.setBiografia(blankToNull(input.biografia()));
+        advogadoRepository.save(advogado);
+        return carregarDetalhe(usuario.getId());
+    }
+
+    @Override
+    @Transactional
+    public AdvogadoDetalheResponseDTO atualizarDisponibilidade(AtualizarDisponibilidadeAdvogadoInputDTO input) {
+        UsuarioEntity usuario = obterAdvogadoAutenticado();
+        AdvogadoEntity advogado = obterAdvogado(usuario.getId());
+
+        advogado.setDisponibilidade(input.disponibilidade());
         advogadoRepository.save(advogado);
         return carregarDetalhe(usuario.getId());
     }

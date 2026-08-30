@@ -28,6 +28,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
 import com.laweact.dto.advogado.AtualizarBiografiaAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarDisponibilidadeAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDadosGeraisAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDocumentacaoAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarEnderecoAdvogadoInputDTO;
@@ -301,6 +302,20 @@ class AdvogadoEditarPerfilServiceTest {
                     assertThat(error.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
                     assertThat(error.getMessage()).containsIgnoringCase("OAB");
                 });
+    }
+
+    @Test
+    @DisplayName("atualiza disponibilidade do perfil")
+    void shouldUpdateAvailability() {
+        stubAuthenticatedAdvogado();
+        stubDetalhe();
+
+        service.atualizarDisponibilidade(AtualizarDisponibilidadeAdvogadoInputDTO.builder()
+                .disponibilidade(DisponibilidadeAdvogadoEnum.INDISPONIVEL)
+                .build());
+
+        assertThat(advogado.getDisponibilidade()).isEqualTo(DisponibilidadeAdvogadoEnum.INDISPONIVEL);
+        verify(advogadoRepository).save(advogado);
     }
 
     @Test

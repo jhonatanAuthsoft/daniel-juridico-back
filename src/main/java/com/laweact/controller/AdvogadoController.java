@@ -19,6 +19,7 @@ import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
 import com.laweact.dto.advogado.AdvogadoPerfilPublicoResponseDTO;
 import com.laweact.dto.advogado.AtualizarBiografiaAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDadosGeraisAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarDisponibilidadeAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDocumentacaoAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarEnderecoAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarFormasCobrancaAdvogadoInputDTO;
@@ -113,6 +114,19 @@ public class AdvogadoController {
     ) {
         AdvogadoDetalheResponseDTO response = advogadoService.atualizarBiografia(input);
         return ResponseEntity.ok(ApiResponse.success(response, "Biografia atualizada com sucesso"));
+    }
+
+    @PatchMapping("/me/disponibilidade")
+    @Operation(
+            summary = "Atualizar disponibilidade do perfil",
+            description = "Marca o perfil do advogado autenticado como disponível ou indisponível"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<AdvogadoDetalheResponseDTO>> atualizarDisponibilidade(
+            @Valid @RequestBody AtualizarDisponibilidadeAdvogadoInputDTO input
+    ) {
+        AdvogadoDetalheResponseDTO response = advogadoService.atualizarDisponibilidade(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Disponibilidade atualizada com sucesso"));
     }
 
     @PatchMapping("/me/documentacao")

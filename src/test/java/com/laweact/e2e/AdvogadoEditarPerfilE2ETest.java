@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.laweact.e2e.support.Fixtures;
 import com.laweact.model.entity.AdvogadoEntity;
 import com.laweact.model.entity.UsuarioEntity;
+import com.laweact.model.enums.DisponibilidadeAdvogadoEnum;
 import com.laweact.model.enums.PronomeTratamentoEnum;
 
 @DisplayName("E2E — edição de dados cadastrais do advogado autenticado")
@@ -237,6 +238,34 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
 
         ResponseEntity<JsonNode> patch = api.patch("/advogados/me/documentacao", body);
         assertErrorDetailContains(patch, HttpStatus.BAD_REQUEST, "OAB");
+    }
+
+    @Test
+    @DisplayName("PATCH disponibilidade persiste e GET /me reflete")
+    void shouldUpdateAvailability() {
+        authenticateAdvogado("edit.adv.disp@laweact.com", "28001238938", "810014");
+
+        ResponseEntity<JsonNode> meBefore = api.get("/usuarios/me");
+        assertSuccess(meBefore, HttpStatus.OK);
+        assertThat(meBefore.getBody().path("data").path("advogado").path("perfil").path("disponibilidade").asText())
+                .isEqualTo("DISPONIVEL");
+
+        ResponseEntity<JsonNode> patch = api.patch(
+                "/advogados/me/disponibilidade",
+                Map.of("disponibilidade", "INDISPONIVEL")
+        );
+        assertSuccess(patch, HttpStatus.OK);
+        assertThat(patch.getBody().path("data").path("perfil").path("disponibilidade").asText())
+                .isEqualTo("INDISPONIVEL");
+
+        ResponseEntity<JsonNode> me = api.get("/usuarios/me");
+        assertSuccess(me, HttpStatus.OK);
+        assertThat(me.getBody().path("data").path("advogado").path("perfil").path("disponibilidade").asText())
+                .isEqualTo("INDISPONIVEL");
+
+        UsuarioEntity usuario = usuarioRepository.findByEmail("edit.adv.disp@laweact.com").orElseThrow();
+        AdvogadoEntity advogado = advogadoRepository.findByUsuarioId(usuario.getId()).orElseThrow();
+        assertThat(advogado.getDisponibilidade()).isEqualTo(DisponibilidadeAdvogadoEnum.INDISPONIVEL);
     }
 
     @Test

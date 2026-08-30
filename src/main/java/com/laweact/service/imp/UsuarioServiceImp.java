@@ -305,10 +305,16 @@ public class UsuarioServiceImp implements UsuarioService {
 
     @Override
     @Transactional
-    public void excluir(UUID id) {
-        UsuarioEntity usuario = usuarioRepository.findById(id)
+    public void excluirUsuarioAutenticado() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserDetails userDetails)) {
+            throw new CustomError("Usuário não autenticado", HttpStatus.UNAUTHORIZED);
+        }
+
+        UsuarioEntity usuario = usuarioRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
-        sessaoService.encerrarTodasDoUsuario(id);
+
+        sessaoService.encerrarTodasDoUsuario(usuario.getId());
         usuarioRepository.delete(usuario);
     }
 

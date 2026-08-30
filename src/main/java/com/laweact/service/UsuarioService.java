@@ -36,7 +36,7 @@ public interface UsuarioService {
 
     EmailDisponivelResponseDTO verificarEmailDisponivel(String email);
 
-    void excluir(UUID id);
+    void excluirUsuarioAutenticado();
 
     UsuarioResponseDTO obterUsuarioPorId(UUID id);
 

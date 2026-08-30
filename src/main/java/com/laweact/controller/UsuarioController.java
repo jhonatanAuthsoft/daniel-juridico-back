@@ -202,11 +202,15 @@ public class UsuarioController {
         return ResponseEntity.ok(ApiResponse.success(response, response.mensagem()));
     }
 
-    @DeleteMapping("/excluir/{id}")
-    @Operation(summary = "Exclui um usuário")
-    public ResponseEntity<ApiResponse<Void>> excluir(@PathVariable UUID id) {
-        usuarioService.excluir(id);
-        return new ResponseEntity<>(ApiResponse.success("Operação realizada com sucesso"), HttpStatus.NO_CONTENT);
+    @DeleteMapping("/me")
+    @Operation(
+            summary = "Excluir conta",
+            description = "Remove permanentemente a conta do usuário autenticado e encerra todas as sessões"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<Void>> excluirConta() {
+        usuarioService.excluirUsuarioAutenticado();
+        return ResponseEntity.ok(ApiResponse.success("Conta excluída com sucesso"));
     }
 
     @GetMapping("/{id}")

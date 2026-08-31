@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.laweact.config.ExpoPushProperties;
@@ -89,7 +90,7 @@ public class NotificacaoServiceImp implements NotificacaoService {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public NotificacaoEntity criarETentarEnviar(
             UUID destinatarioId,
             UUID remetenteId,
@@ -113,6 +114,13 @@ public class NotificacaoServiceImp implements NotificacaoService {
                 .referenciaId(conexaoId)
                 .statusEnvio(StatusEnvioNotificacaoEnum.PENDENTE)
                 .build());
+        log.info(
+                "Notificação {} criada tipo={} destinatario={} conexao={}",
+                notificacao.getId(),
+                tipo,
+                destinatarioId,
+                conexaoId
+        );
 
         return tentarEnviarPush(notificacao);
     }

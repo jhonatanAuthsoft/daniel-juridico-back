@@ -20,8 +20,12 @@ import com.laweact.dto.shared.ApiResponse;
 import com.laweact.dto.shared.PaginationInfo;
 import com.laweact.dto.usuario.AceitarTermosInputDTO;
 import com.laweact.dto.usuario.AceitarTermosResponseDTO;
+import com.laweact.dto.usuario.AtualizarFotoInputDTO;
 import com.laweact.dto.usuario.AtualizarPreferenciasInputDTO;
+import com.laweact.dto.usuario.AtualizarSenhaInputDTO;
+import com.laweact.dto.usuario.AtualizarSenhaResponseDTO;
 import com.laweact.dto.usuario.EmailDisponivelResponseDTO;
+import com.laweact.dto.usuario.FotoPerfilResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
@@ -172,11 +176,41 @@ public class UsuarioController {
         return ResponseEntity.ok(ApiResponse.success(response, "Preferências atualizadas com sucesso"));
     }
 
-    @DeleteMapping("/excluir/{id}")
-    @Operation(summary = "Exclui um usuário")
-    public ResponseEntity<ApiResponse<Void>> excluir(@PathVariable UUID id) {
-        usuarioService.excluir(id);
-        return new ResponseEntity<>(ApiResponse.success("Operação realizada com sucesso"), HttpStatus.NO_CONTENT);
+    @PatchMapping("/me/foto")
+    @Operation(
+            summary = "Atualizar foto de perfil",
+            description = "Atualiza a key S3 da foto de perfil do usuário autenticado (cliente ou advogado)"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<FotoPerfilResponseDTO>> atualizarFoto(
+            @Valid @RequestBody AtualizarFotoInputDTO input
+    ) {
+        FotoPerfilResponseDTO response = usuarioService.atualizarFotoDoUsuarioAutenticado(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Foto de perfil atualizada com sucesso"));
+    }
+
+    @PatchMapping("/me/senha")
+    @Operation(
+            summary = "Atualizar senha",
+            description = "Altera a senha do usuário autenticado informando a senha atual e a nova senha"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<AtualizarSenhaResponseDTO>> atualizarSenha(
+            @Valid @RequestBody AtualizarSenhaInputDTO input
+    ) {
+        AtualizarSenhaResponseDTO response = usuarioService.atualizarSenhaDoUsuarioAutenticado(input);
+        return ResponseEntity.ok(ApiResponse.success(response, response.mensagem()));
+    }
+
+    @DeleteMapping("/me")
+    @Operation(
+            summary = "Excluir conta",
+            description = "Remove permanentemente a conta do usuário autenticado e encerra todas as sessões"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<Void>> excluirConta() {
+        usuarioService.excluirUsuarioAutenticado();
+        return ResponseEntity.ok(ApiResponse.success("Conta excluída com sucesso"));
     }
 
     @GetMapping("/{id}")

@@ -4,8 +4,12 @@ import com.laweact.config.JwtUtil;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
 import com.laweact.dto.cliente.ClienteDetalheResponseDTO;
+import com.laweact.dto.usuario.AtualizarFotoInputDTO;
 import com.laweact.dto.usuario.AtualizarPreferenciasInputDTO;
+import com.laweact.dto.usuario.AtualizarSenhaInputDTO;
+import com.laweact.dto.usuario.AtualizarSenhaResponseDTO;
 import com.laweact.dto.usuario.EmailDisponivelResponseDTO;
+import com.laweact.dto.usuario.FotoPerfilResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
@@ -14,11 +18,17 @@ import com.laweact.dto.usuario.RefreshTokenInputDTO;
 import com.laweact.dto.usuario.RefreshTokenResponseDTO;
 import com.laweact.dto.usuario.UsuarioResponseDTO;
 import com.laweact.mapper.UsuarioMapper;
+import com.laweact.model.entity.AdvogadoEntity;
+import com.laweact.model.entity.ClienteEntity;
 import com.laweact.model.entity.SessaoEntity;
 import com.laweact.model.entity.UsuarioEntity;
+import com.laweact.model.enums.ArquivoFinalidade;
 import com.laweact.model.enums.PerfilUsuarioEnum;
 import com.laweact.model.enums.StatusUsuarioEnum;
+import com.laweact.repository.AdvogadoRepository;
+import com.laweact.repository.ClienteRepository;
 import com.laweact.repository.UsuarioRepository;
+import com.laweact.service.ArquivoService;
 import com.laweact.service.SessaoService;
 import com.laweact.service.UsuarioService;
 
@@ -33,6 +43,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -52,6 +63,10 @@ public class UsuarioServiceImp implements UsuarioService {
     private final SessaoService sessaoService;
     private final ClienteServiceImp clienteServiceImp;
     private final AdvogadoServiceImp advogadoServiceImp;
+    private final ClienteRepository clienteRepository;
+    private final AdvogadoRepository advogadoRepository;
+    private final ArquivoService arquivoService;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
@@ -207,6 +222,75 @@ public class UsuarioServiceImp implements UsuarioService {
 
     @Override
     @Transactional
+    public FotoPerfilResponseDTO atualizarFotoDoUsuarioAutenticado(AtualizarFotoInputDTO input) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!(principal instanceof UserDetails userDetails)) {
+            throw new CustomError("Usuário não autenticado", HttpStatus.UNAUTHORIZED);
+        }
+
+        UsuarioEntity usuario = usuarioRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
+
+        ArquivoFinalidade finalidade = finalidadeDaFoto(usuario.getPerfil());
+        String key = input.fotoUrl().trim();
+        arquivoService.validarKeyParaFinalidade(key, finalidade);
+
+        if (usuario.getPerfil() == PerfilUsuarioEnum.CLIENTE) {
+            ClienteEntity cliente = clienteRepository.findByUsuarioId(usuario.getId())
+                    .orElseThrow(() -> new CustomError("Perfil de cliente não encontrado", HttpStatus.NOT_FOUND));
+            cliente.setFotoUrl(key);
+            clienteRepository.save(cliente);
+        } else if (usuario.getPerfil() == PerfilUsuarioEnum.ADVOGADO) {
+            AdvogadoEntity advogado = advogadoRepository.findByUsuarioId(usuario.getId())
+                    .orElseThrow(() -> new CustomError("Perfil de advogado não encontrado", HttpStatus.NOT_FOUND));
+            advogado.setFotoUrl(key);
+            advogadoRepository.save(advogado);
+        } else {
+            throw new CustomError("Perfil não suporta foto", HttpStatus.BAD_REQUEST);
+        }
+
+        return FotoPerfilResponseDTO.builder().fotoUrl(key).build();
+    }
+
+    @Override
+    @Transactional
+    public AtualizarSenhaResponseDTO atualizarSenhaDoUsuarioAutenticado(AtualizarSenhaInputDTO input) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!(principal instanceof UserDetails userDetails)) {
+            throw new CustomError("Usuário não autenticado", HttpStatus.UNAUTHORIZED);
+        }
+
+        UsuarioEntity usuario = usuarioRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
+
+        if (!passwordEncoder.matches(input.senhaAtual(), usuario.getSenha())) {
+            throw new CustomError("A senha atual está incorreta", HttpStatus.BAD_REQUEST);
+        }
+
+        if (input.senhaAtual().equals(input.novaSenha())) {
+            throw new CustomError("A nova senha deve ser diferente da senha atual", HttpStatus.BAD_REQUEST);
+        }
+
+        usuario.setSenha(passwordEncoder.encode(input.novaSenha()));
+        usuarioRepository.save(usuario);
+
+        return AtualizarSenhaResponseDTO.builder()
+                .mensagem("Senha alterada com sucesso")
+                .build();
+    }
+
+    private static ArquivoFinalidade finalidadeDaFoto(PerfilUsuarioEnum perfil) {
+        if (perfil == PerfilUsuarioEnum.CLIENTE) {
+            return ArquivoFinalidade.CLIENTE_PERFIL;
+        }
+        if (perfil == PerfilUsuarioEnum.ADVOGADO) {
+            return ArquivoFinalidade.ADVOGADO_PERFIL;
+        }
+        throw new CustomError("Perfil não suporta foto", HttpStatus.BAD_REQUEST);
+    }
+
+    @Override
+    @Transactional
     public EmailDisponivelResponseDTO verificarEmailDisponivel(String email) {
         if (email == null || email.isBlank()) {
             throw new CustomError("E-mail é obrigatório", HttpStatus.BAD_REQUEST, "INVALID_REQUEST");
@@ -221,10 +305,16 @@ public class UsuarioServiceImp implements UsuarioService {
 
     @Override
     @Transactional
-    public void excluir(UUID id) {
-        UsuarioEntity usuario = usuarioRepository.findById(id)
+    public void excluirUsuarioAutenticado() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserDetails userDetails)) {
+            throw new CustomError("Usuário não autenticado", HttpStatus.UNAUTHORIZED);
+        }
+
+        UsuarioEntity usuario = usuarioRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
-        sessaoService.encerrarTodasDoUsuario(id);
+
+        sessaoService.encerrarTodasDoUsuario(usuario.getId());
         usuarioRepository.delete(usuario);
     }
 

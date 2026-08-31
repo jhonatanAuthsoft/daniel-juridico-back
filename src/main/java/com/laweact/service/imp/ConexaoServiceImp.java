@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,8 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.conexao.ConexaoResponseDTO;
 import com.laweact.dto.conexao.CriarConexaoInputDTO;
-import com.laweact.event.ConexaoAceitaEvent;
-import com.laweact.event.ConexaoSolicitadaEvent;
 import com.laweact.model.entity.AdvogadoEntity;
 import com.laweact.model.entity.AvaliacaoAdvogadoEntity;
 import com.laweact.model.entity.ClienteEntity;
@@ -29,6 +26,7 @@ import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.model.enums.PerfilUsuarioEnum;
 import com.laweact.model.enums.StatusConexaoEnum;
 import com.laweact.model.enums.StatusSolicitacaoEnum;
+import com.laweact.model.enums.TipoNotificacaoEnum;
 import com.laweact.repository.AdvogadoRepository;
 import com.laweact.repository.AvaliacaoAdvogadoRepository;
 import com.laweact.repository.ClienteRepository;
@@ -38,6 +36,7 @@ import com.laweact.repository.SolicitacaoMatchRepository;
 import com.laweact.repository.SolicitacaoRepository;
 import com.laweact.repository.UsuarioRepository;
 import com.laweact.service.ConexaoService;
+import com.laweact.service.NotificacaoService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,7 +57,7 @@ public class ConexaoServiceImp implements ConexaoService {
     private final UsuarioRepository usuarioRepository;
     private final EnderecoRepository enderecoRepository;
     private final AvaliacaoAdvogadoRepository avaliacaoAdvogadoRepository;
-    private final ApplicationEventPublisher applicationEventPublisher;
+    private final NotificacaoService notificacaoService;
 
     @Override
     @Transactional
@@ -143,14 +142,9 @@ public class ConexaoServiceImp implements ConexaoService {
         );
 
         ConexaoEntity detalhada = carregarDetalhada(salva.getId());
-        applicationEventPublisher.publishEvent(new ConexaoSolicitadaEvent(
-                detalhada.getId(),
-                detalhada.getCliente().getUsuarioId(),
-                detalhada.getAdvogado().getUsuarioId(),
-                detalhada.getCliente().getNomeCompleto(),
-                detalhada.getSolicitacao().getTitulo()
-        ));
-        return toResponse(detalhada);
+        ConexaoResponseDTO response = toResponse(detalhada);
+        notificarSolicitada(detalhada);
+        return response;
     }
 
     @Override
@@ -191,14 +185,9 @@ public class ConexaoServiceImp implements ConexaoService {
             solicitacaoRepository.save(solicitacao);
         }
 
-        applicationEventPublisher.publishEvent(new ConexaoAceitaEvent(
-                conexao.getId(),
-                conexao.getCliente().getUsuarioId(),
-                conexao.getAdvogado().getUsuarioId(),
-                conexao.getAdvogado().getNomeCompleto(),
-                conexao.getSolicitacao().getTitulo()
-        ));
-        return toResponse(conexao);
+        ConexaoResponseDTO response = toResponse(conexao);
+        notificarAceita(conexao);
+        return response;
     }
 
     @Override
@@ -256,6 +245,52 @@ public class ConexaoServiceImp implements ConexaoService {
                 .orElseThrow(() -> new CustomError("Conexão não encontrada", HttpStatus.NOT_FOUND));
 
         return toResponse(carregarDetalhada(conexao.getId()));
+    }
+
+    private void notificarSolicitada(ConexaoEntity conexao) {
+        String tituloSolicitacao = conexao.getSolicitacao().getTitulo();
+        try {
+            notificacaoService.criarETentarEnviar(
+                    conexao.getAdvogado().getUsuarioId(),
+                    conexao.getCliente().getUsuarioId(),
+                    TipoNotificacaoEnum.CONEXAO_SOLICITADA,
+                    conexao.getId(),
+                    "Nova solicitação de conexão",
+                    conexao.getCliente().getNomeCompleto()
+                            + " solicitou conexão sobre \""
+                            + tituloSolicitacao
+                            + "\""
+            );
+        } catch (Exception ex) {
+            log.error(
+                    "Falha ao criar notificação CONEXAO_SOLICITADA para conexão {}",
+                    conexao.getId(),
+                    ex
+            );
+        }
+    }
+
+    private void notificarAceita(ConexaoEntity conexao) {
+        String tituloSolicitacao = conexao.getSolicitacao().getTitulo();
+        try {
+            notificacaoService.criarETentarEnviar(
+                    conexao.getCliente().getUsuarioId(),
+                    conexao.getAdvogado().getUsuarioId(),
+                    TipoNotificacaoEnum.CONEXAO_ACEITA,
+                    conexao.getId(),
+                    "Conexão aceita",
+                    conexao.getAdvogado().getNomeCompleto()
+                            + " aceitou sua solicitação \""
+                            + tituloSolicitacao
+                            + "\""
+            );
+        } catch (Exception ex) {
+            log.error(
+                    "Falha ao criar notificação CONEXAO_ACEITA para conexão {}",
+                    conexao.getId(),
+                    ex
+            );
+        }
     }
 
     private ConexaoEntity decidirDoAdvogado(UUID conexaoId, StatusConexaoEnum novoStatus) {

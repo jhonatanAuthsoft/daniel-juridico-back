@@ -20,6 +20,13 @@ import com.laweact.config.exception.CustomError;
 import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
 import com.laweact.dto.advogado.AdvogadoPerfilPublicoResponseDTO;
 import com.laweact.dto.advogado.AreaAtuacaoInputDTO;
+import com.laweact.dto.advogado.AtualizarBiografiaAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarDadosGeraisAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarDisponibilidadeAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarDocumentacaoAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarEnderecoAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarFormasCobrancaAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarGraduacaoAdvogadoInputDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoInputDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoResponseDTO;
 import com.laweact.dto.advogado.EspecialidadeInputDTO;
@@ -234,6 +241,113 @@ public class AdvogadoServiceImp implements AdvogadoService {
                 advogadoFormaCobrancaRepository.findByAdvogadoUsuarioId(usuarioId),
                 posGraduacaoAdvogadoRepository.findByAdvogadoUsuarioId(usuarioId)
         );
+    }
+
+    @Override
+    @Transactional
+    public AdvogadoDetalheResponseDTO atualizarDadosGerais(AtualizarDadosGeraisAdvogadoInputDTO input) {
+        UsuarioEntity usuario = obterAdvogadoAutenticado();
+        String nome = requireNome(input.nomeCompleto());
+        AdvogadoEntity advogado = obterAdvogado(usuario.getId());
+
+        usuario.setNomeCompleto(nome);
+        advogado.setNomeCompleto(nome);
+        usuarioRepository.save(usuario);
+        advogadoRepository.save(advogado);
+        return carregarDetalhe(usuario.getId());
+    }
+
+    @Override
+    @Transactional
+    public AdvogadoDetalheResponseDTO atualizarEndereco(AtualizarEnderecoAdvogadoInputDTO input) {
+        UsuarioEntity usuario = obterAdvogadoAutenticado();
+        EnderecoEntity endereco = enderecoRepository.findByUsuario_Id(usuario.getId())
+                .orElseThrow(() -> new CustomError("Endereço não encontrado", HttpStatus.NOT_FOUND));
+
+        endereco.setCep(normalizarCep(input.cep()));
+        endereco.setLogradouro(input.logradouro().trim());
+        endereco.setNumero(input.numero().trim());
+        endereco.setComplemento(blankToNull(input.complemento()));
+        endereco.setBairro(input.bairro().trim());
+        endereco.setCidade(input.cidade().trim());
+        endereco.setEstado(input.estado().trim().toUpperCase());
+
+        enderecoRepository.save(endereco);
+        return carregarDetalhe(usuario.getId());
+    }
+
+    @Override
+    @Transactional
+    public AdvogadoDetalheResponseDTO atualizarFormasCobranca(AtualizarFormasCobrancaAdvogadoInputDTO input) {
+        UsuarioEntity usuario = obterAdvogadoAutenticado();
+        AdvogadoEntity advogado = obterAdvogado(usuario.getId());
+        if (input.formasCobranca() == null || input.formasCobranca().isEmpty()) {
+            throw new CustomError("Informe ao menos uma forma de cobrança", HttpStatus.BAD_REQUEST);
+        }
+
+        List<FormaCobrancaEntity> formas = resolverFormasCobranca(input.formasCobranca());
+        List<AdvogadoFormaCobrancaEntity> atuais = advogadoFormaCobrancaRepository.findByAdvogadoUsuarioId(usuario.getId());
+        advogadoFormaCobrancaRepository.deleteAll(atuais);
+        advogadoFormaCobrancaRepository.flush();
+        salvarFormasCobranca(advogado, formas);
+        return carregarDetalhe(usuario.getId());
+    }
+
+    @Override
+    @Transactional
+    public AdvogadoDetalheResponseDTO atualizarBiografia(AtualizarBiografiaAdvogadoInputDTO input) {
+        UsuarioEntity usuario = obterAdvogadoAutenticado();
+        AdvogadoEntity advogado = obterAdvogado(usuario.getId());
+
+        advogado.setPronomeTratamento(input.pronomeTratamento());
+        advogado.setBiografia(blankToNull(input.biografia()));
+        advogadoRepository.save(advogado);
+        return carregarDetalhe(usuario.getId());
+    }
+
+    @Override
+    @Transactional
+    public AdvogadoDetalheResponseDTO atualizarDisponibilidade(AtualizarDisponibilidadeAdvogadoInputDTO input) {
+        UsuarioEntity usuario = obterAdvogadoAutenticado();
+        AdvogadoEntity advogado = obterAdvogado(usuario.getId());
+
+        advogado.setDisponibilidade(input.disponibilidade());
+        advogadoRepository.save(advogado);
+        return carregarDetalhe(usuario.getId());
+    }
+
+    @Override
+    @Transactional
+    public AdvogadoDetalheResponseDTO atualizarDocumentacao(AtualizarDocumentacaoAdvogadoInputDTO input) {
+        UsuarioEntity usuario = obterAdvogadoAutenticado();
+        AdvogadoEntity advogado = obterAdvogado(usuario.getId());
+
+        validarLimiteOabsSuplementares(input.oabsSuplementares());
+        garantirOabsDisponiveis(input.oabPrincipal(), input.oabsSuplementares(), usuario.getId());
+
+        oabRepository.deleteAll(oabRepository.findByAdvogadoUsuarioId(usuario.getId()));
+        oabRepository.flush();
+
+        salvarOab(advogado, input.oabPrincipal(), true);
+        if (input.oabsSuplementares() != null) {
+            for (OabInputDTO suplementar : input.oabsSuplementares()) {
+                salvarOab(advogado, suplementar, false);
+            }
+        }
+        return carregarDetalhe(usuario.getId());
+    }
+
+    @Override
+    @Transactional
+    public AdvogadoDetalheResponseDTO atualizarGraduacao(AtualizarGraduacaoAdvogadoInputDTO input) {
+        UsuarioEntity usuario = obterAdvogadoAutenticado();
+        AdvogadoEntity advogado = obterAdvogado(usuario.getId());
+
+        advogado.setUniversidade(input.universidade().trim());
+        advogado.setCurso(input.curso().trim());
+        advogado.setAnoFormacao(input.anoFormacao());
+        advogadoRepository.save(advogado);
+        return carregarDetalhe(usuario.getId());
     }
 
     @Override
@@ -477,6 +591,65 @@ public class AdvogadoServiceImp implements AdvogadoService {
         }
         return usuarioRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
+    }
+
+    private UsuarioEntity obterAdvogadoAutenticado() {
+        UsuarioEntity usuario = obterUsuarioAutenticado();
+        if (usuario.getPerfil() != PerfilUsuarioEnum.ADVOGADO) {
+            throw new CustomError("Apenas advogados podem editar estes dados", HttpStatus.FORBIDDEN, "FORBIDDEN");
+        }
+        return usuario;
+    }
+
+    private AdvogadoEntity obterAdvogado(UUID usuarioId) {
+        return advogadoRepository.findByUsuarioId(usuarioId)
+                .orElseThrow(() -> new CustomError("Perfil de advogado não encontrado", HttpStatus.NOT_FOUND));
+    }
+
+    private String requireNome(String nomeCompleto) {
+        if (nomeCompleto == null || nomeCompleto.isBlank()) {
+            throw new CustomError("O nome é obrigatório", HttpStatus.BAD_REQUEST);
+        }
+        return nomeCompleto.trim();
+    }
+
+    private void garantirOabsDisponiveis(
+            OabInputDTO principal,
+            List<OabInputDTO> suplementares,
+            UUID advogadoId
+    ) {
+        Set<String> chaves = new HashSet<>();
+        garantirOabDisponivel(principal, advogadoId, "OAB já cadastrada");
+        chaves.add(chaveOab(principal));
+
+        if (suplementares == null) {
+            return;
+        }
+        for (OabInputDTO suplementar : suplementares) {
+            String chave = chaveOab(suplementar);
+            if (!chaves.add(chave)) {
+                String numero = suplementar.numero().trim();
+                String uf = suplementar.uf().trim().toUpperCase();
+                throw new CustomError("OAB duplicada no cadastro: " + numero + "/" + uf, HttpStatus.BAD_REQUEST);
+            }
+            garantirOabDisponivel(
+                    suplementar,
+                    advogadoId,
+                    "OAB suplementar já cadastrada: " + suplementar.numero().trim() + "/" + suplementar.uf().trim().toUpperCase()
+            );
+        }
+    }
+
+    private void garantirOabDisponivel(OabInputDTO input, UUID advogadoId, String mensagem) {
+        String numero = input.numero().trim();
+        String uf = input.uf().trim().toUpperCase();
+        if (oabRepository.existsByNumeroAndUfAndAdvogadoUsuarioIdNot(numero, uf, advogadoId)) {
+            throw new CustomError(mensagem, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private String chaveOab(OabInputDTO input) {
+        return input.numero().trim() + "|" + input.uf().trim().toUpperCase();
     }
 
     private void validarLimiteOabsSuplementares(List<OabInputDTO> suplementares) {

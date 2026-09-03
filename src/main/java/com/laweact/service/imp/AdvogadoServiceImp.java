@@ -74,6 +74,7 @@ import com.laweact.repository.PosGraduacaoAdvogadoRepository;
 import com.laweact.repository.SubespecialidadeRepository;
 import com.laweact.repository.UsuarioRepository;
 import com.laweact.service.AdvogadoService;
+import com.laweact.service.AssinaturaService;
 import com.laweact.service.SessaoService;
 
 import jakarta.transaction.Transactional;
@@ -109,6 +110,7 @@ public class AdvogadoServiceImp implements AdvogadoService {
     private final UsuarioDetailsServiceImp usuarioDetailsServiceImp;
     private final SessaoService sessaoService;
     private final AdvogadoMapper advogadoMapper;
+    private final AssinaturaService assinaturaService;
 
     @Override
     @Transactional
@@ -207,6 +209,8 @@ public class AdvogadoServiceImp implements AdvogadoService {
         List<AdvogadoFormaCobrancaEntity> cobrancasSalvas = salvarFormasCobranca(advogadoSalvo, formasCobranca);
         List<AdvogadoEspecialidadeEntity> especialidadesSalvas = salvarEspecialidades(advogadoSalvo, input.especialidades());
         List<PosGraduacaoAdvogadoEntity> posGraduacoesSalvas = salvarPosGraduacoes(advogadoSalvo, input.posGraduacoes());
+
+        assinaturaService.criarTrialParaAdvogado(usuarioSalvo);
 
         UserDetails userDetails = usuarioDetailsServiceImp.loadUserByUsername(email);
         var tokens = sessaoService.criar(usuarioSalvo, userDetails, null);

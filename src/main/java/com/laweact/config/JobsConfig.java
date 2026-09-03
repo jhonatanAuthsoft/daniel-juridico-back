@@ -6,7 +6,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @EnableConfigurationProperties({
         JobsApiKeyProperties.class,
-        NotificacaoInsistenteProperties.class
+        NotificacaoInsistenteProperties.class,
+        AssinaturaProperties.class
 })
 public class JobsConfig {
 }

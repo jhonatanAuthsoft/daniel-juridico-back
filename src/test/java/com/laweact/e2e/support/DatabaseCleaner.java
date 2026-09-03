@@ -18,6 +18,8 @@ public class DatabaseCleaner {
     public void clear() {
         jdbcTemplate.execute("""
                 TRUNCATE TABLE
+                  assinatura_eventos,
+                  assinaturas,
                   notificacoes,
                   dispositivos_push,
                   conexoes,

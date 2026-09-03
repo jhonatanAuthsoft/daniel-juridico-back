@@ -29,6 +29,7 @@ import com.laweact.repository.AdvogadoRepository;
 import com.laweact.repository.ClienteRepository;
 import com.laweact.repository.UsuarioRepository;
 import com.laweact.service.ArquivoService;
+import com.laweact.service.AssinaturaService;
 import com.laweact.service.SessaoService;
 import com.laweact.service.UsuarioService;
 
@@ -67,6 +68,7 @@ public class UsuarioServiceImp implements UsuarioService {
     private final AdvogadoRepository advogadoRepository;
     private final ArquivoService arquivoService;
     private final PasswordEncoder passwordEncoder;
+    private final AssinaturaService assinaturaService;
 
     @Override
     @Transactional
@@ -198,7 +200,7 @@ public class UsuarioServiceImp implements UsuarioService {
             advogado = advogadoServiceImp.carregarDetalhe(usuario.getId());
         }
 
-        return usuarioMapper.toMeResponse(usuario, cliente, advogado);
+        return usuarioMapper.toMeResponse(usuario, cliente, advogado, assinaturaService.obterAssinaturaDoUsuario(usuario));
     }
 
     @Override

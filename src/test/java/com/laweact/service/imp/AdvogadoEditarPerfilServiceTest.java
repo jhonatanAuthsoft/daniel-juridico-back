@@ -61,6 +61,7 @@ import com.laweact.repository.OabRepository;
 import com.laweact.repository.PosGraduacaoAdvogadoRepository;
 import com.laweact.repository.SubespecialidadeRepository;
 import com.laweact.repository.UsuarioRepository;
+import com.laweact.service.AssinaturaService;
 import com.laweact.service.SessaoService;
 
 @ExtendWith(MockitoExtension.class)
@@ -107,6 +108,8 @@ class AdvogadoEditarPerfilServiceTest {
     private SessaoService sessaoService;
     @Mock
     private AdvogadoMapper advogadoMapper;
+    @Mock
+    private AssinaturaService assinaturaService;
 
     private AdvogadoServiceImp service;
     private final UUID usuarioId = UUID.randomUUID();
@@ -136,7 +139,8 @@ class AdvogadoEditarPerfilServiceTest {
                 passwordEncoder,
                 usuarioDetailsServiceImp,
                 sessaoService,
-                advogadoMapper
+                advogadoMapper,
+                assinaturaService
         );
 
         usuario = UsuarioEntity.builder()

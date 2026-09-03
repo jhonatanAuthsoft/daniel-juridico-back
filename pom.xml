@@ -107,6 +107,21 @@
             <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.apple.itunes.storekit</groupId>
+            <artifactId>app-store-server-library</artifactId>
+            <version>3.6.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-androidpublisher</artifactId>
+            <version>v3-rev20250318-2.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.auth</groupId>
+            <artifactId>google-auth-library-oauth2-http</artifactId>
+            <version>1.33.1</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

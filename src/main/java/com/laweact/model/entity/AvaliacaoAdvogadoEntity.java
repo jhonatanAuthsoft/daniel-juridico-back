@@ -31,9 +31,13 @@ public class AvaliacaoAdvogadoEntity extends BaseEntity {
     @JoinColumn(name = "cliente_id", nullable = false)
     private ClienteEntity cliente;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conexao_id")
+    private ConexaoEntity conexao;
+
     @Column(name = "nota", nullable = false, precision = 2, scale = 1)
     private BigDecimal nota;
 
-    @Column(name = "comentario", nullable = false, length = 800)
+    @Column(name = "comentario", length = 800)
     private String comentario;
 }

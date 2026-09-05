@@ -164,6 +164,63 @@ class AdvogadoAvaliacoesListarE2ETest extends BaseE2ETest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    @Test
+    @DisplayName("pagina avaliações com limit e offset")
+    void shouldPaginateAvaliacoes() {
+        ResponseEntity<JsonNode> cadastroAdv = api.post(
+                "/advogados/cadastrar",
+                Fixtures.advogadoValido("aval.page@laweact.com", "39053344705", "155244")
+        );
+        assertSuccess(cadastroAdv, HttpStatus.CREATED);
+        UUID advogadoId = UUID.fromString(
+                cadastroAdv.getBody().path("data").path("usuario").path("id").asText()
+        );
+
+        ResponseEntity<JsonNode> cli1 = api.post(
+                "/clientes/cadastrar",
+                Fixtures.clienteValido("aval.page1@laweact.com", "15350946056")
+        );
+        assertSuccess(cli1, HttpStatus.CREATED);
+        UUID cliente1Id = UUID.fromString(cli1.getBody().path("data").path("usuario").path("id").asText());
+        String tokenCli1 = cli1.getBody().path("data").path("token").asText();
+
+        ResponseEntity<JsonNode> cli2 = api.post(
+                "/clientes/cadastrar",
+                Fixtures.clienteValido("aval.page2@laweact.com", "71428793860")
+        );
+        assertSuccess(cli2, HttpStatus.CREATED);
+        UUID cliente2Id = UUID.fromString(cli2.getBody().path("data").path("usuario").path("id").asText());
+
+        ResponseEntity<JsonNode> cli3 = api.post(
+                "/clientes/cadastrar",
+                Fixtures.clienteValido("aval.page3@laweact.com", "52998224725")
+        );
+        assertSuccess(cli3, HttpStatus.CREATED);
+        UUID cliente3Id = UUID.fromString(cli3.getBody().path("data").path("usuario").path("id").asText());
+
+        inserirAvaliacaoEm(advogadoId, cliente1Id, "5.0", "Primeira.", "2026-01-01 10:00:00");
+        inserirAvaliacaoEm(advogadoId, cliente2Id, "4.0", "Segunda.", "2026-02-01 10:00:00");
+        inserirAvaliacaoEm(advogadoId, cliente3Id, "3.0", "Terceira.", "2026-03-01 10:00:00");
+
+        api.authenticate(tokenCli1);
+        ResponseEntity<JsonNode> primeiraPagina = api.get(
+                "/advogados/" + advogadoId + "/avaliacoes?limit=2&offset=0"
+        );
+        assertSuccess(primeiraPagina, HttpStatus.OK);
+        JsonNode pagina1 = primeiraPagina.getBody();
+        assertThat(pagina1.path("data").path("items")).hasSize(2);
+        assertThat(pagina1.path("pagination").path("size").asInt()).isEqualTo(2);
+        assertThat(pagina1.path("pagination").path("totalElements").asInt()).isEqualTo(3);
+        assertThat(pagina1.path("pagination").path("totalPages").asInt()).isEqualTo(2);
+
+        ResponseEntity<JsonNode> segundaPagina = api.get(
+                "/advogados/" + advogadoId + "/avaliacoes?limit=2&offset=2"
+        );
+        assertSuccess(segundaPagina, HttpStatus.OK);
+        assertThat(segundaPagina.getBody().path("data").path("items")).hasSize(1);
+        assertThat(segundaPagina.getBody().path("pagination").path("page").asInt()).isEqualTo(2);
+    }
+
     private void inserirAvaliacao(UUID advogadoId, UUID clienteId, String nota, String comentario) {
         inserirAvaliacaoEm(advogadoId, clienteId, nota, comentario, null);
     }

@@ -44,6 +44,7 @@ import com.laweact.model.entity.AdvogadoModalidadeEntity;
 import com.laweact.model.entity.AreaAtuacaoAdvogadoEntity;
 import com.laweact.model.entity.AvaliacaoAdvogadoEntity;
 import com.laweact.model.entity.ClienteEntity;
+import com.laweact.model.entity.ConexaoEntity;
 import com.laweact.model.entity.EnderecoEntity;
 import com.laweact.model.entity.EspecialidadeEntity;
 import com.laweact.model.entity.FormaCobrancaEntity;
@@ -74,6 +75,7 @@ import com.laweact.repository.PosGraduacaoAdvogadoRepository;
 import com.laweact.repository.SubespecialidadeRepository;
 import com.laweact.repository.UsuarioRepository;
 import com.laweact.service.AdvogadoService;
+import com.laweact.service.AssinaturaService;
 import com.laweact.service.SessaoService;
 
 import jakarta.transaction.Transactional;
@@ -109,6 +111,7 @@ public class AdvogadoServiceImp implements AdvogadoService {
     private final UsuarioDetailsServiceImp usuarioDetailsServiceImp;
     private final SessaoService sessaoService;
     private final AdvogadoMapper advogadoMapper;
+    private final AssinaturaService assinaturaService;
 
     @Override
     @Transactional
@@ -207,6 +210,8 @@ public class AdvogadoServiceImp implements AdvogadoService {
         List<AdvogadoFormaCobrancaEntity> cobrancasSalvas = salvarFormasCobranca(advogadoSalvo, formasCobranca);
         List<AdvogadoEspecialidadeEntity> especialidadesSalvas = salvarEspecialidades(advogadoSalvo, input.especialidades());
         List<PosGraduacaoAdvogadoEntity> posGraduacoesSalvas = salvarPosGraduacoes(advogadoSalvo, input.posGraduacoes());
+
+        assinaturaService.criarTrialParaAdvogado(usuarioSalvo);
 
         UserDetails userDetails = usuarioDetailsServiceImp.loadUserByUsername(email);
         var tokens = sessaoService.criar(usuarioSalvo, userDetails, null);
@@ -421,18 +426,7 @@ public class AdvogadoServiceImp implements AdvogadoService {
         if (usuario == null || usuario.getPerfil() != PerfilUsuarioEnum.CLIENTE) {
             return false;
         }
-        boolean temAceita = conexaoRepository.existsByCliente_UsuarioIdAndAdvogado_UsuarioIdAndStatus(
-                usuarioAutenticadoId,
-                advogadoId,
-                StatusConexaoEnum.ACEITA
-        );
-        if (!temAceita) {
-            return false;
-        }
-        return !avaliacaoAdvogadoRepository.existsByAdvogado_UsuarioIdAndCliente_UsuarioId(
-                advogadoId,
-                usuarioAutenticadoId
-        );
+        return temConexaoAceitaSemAvaliacao(usuarioAutenticadoId, advogadoId);
     }
 
     @Override
@@ -456,33 +450,12 @@ public class AdvogadoServiceImp implements AdvogadoService {
         BigDecimal nota = validarNotaAvaliacao(input.nota());
         String comentario = validarComentarioAvaliacao(input.comentario());
 
-        boolean temAceita = conexaoRepository.existsByCliente_UsuarioIdAndAdvogado_UsuarioIdAndStatus(
-                usuario.getId(),
-                advogadoId,
-                StatusConexaoEnum.ACEITA
-        );
-        if (!temAceita) {
-            throw new CustomError(
-                    "É necessário ter uma conexão aceita com o advogado para avaliar",
-                    HttpStatus.FORBIDDEN,
-                    "FORBIDDEN"
-            );
-        }
-
-        if (avaliacaoAdvogadoRepository.existsByAdvogado_UsuarioIdAndCliente_UsuarioId(
-                advogadoId,
-                usuario.getId()
-        )) {
-            throw new CustomError(
-                    "Você já avaliou este advogado",
-                    HttpStatus.CONFLICT,
-                    "CONFLICT"
-            );
-        }
+        ConexaoEntity conexao = resolverConexaoParaAvaliacao(usuario.getId(), advogadoId);
 
         AvaliacaoAdvogadoEntity salva = avaliacaoAdvogadoRepository.save(AvaliacaoAdvogadoEntity.builder()
                 .advogado(advogado)
                 .cliente(cliente)
+                .conexao(conexao)
                 .nota(nota)
                 .comentario(comentario)
                 .build());
@@ -511,7 +484,7 @@ public class AdvogadoServiceImp implements AdvogadoService {
 
     private String validarComentarioAvaliacao(String comentario) {
         if (comentario == null || comentario.isBlank()) {
-            throw new CustomError("O comentário é obrigatório", HttpStatus.BAD_REQUEST);
+            return null;
         }
         String trimmed = comentario.trim();
         if (trimmed.length() > 800) {
@@ -521,6 +494,49 @@ public class AdvogadoServiceImp implements AdvogadoService {
             );
         }
         return trimmed;
+    }
+
+    private boolean temConexaoAceitaSemAvaliacao(UUID clienteId, UUID advogadoId) {
+        return resolverConexaoAceitaSemAvaliacao(clienteId, advogadoId) != null;
+    }
+
+    private ConexaoEntity resolverConexaoParaAvaliacao(UUID clienteId, UUID advogadoId) {
+        ConexaoEntity pendente = resolverConexaoAceitaSemAvaliacao(clienteId, advogadoId);
+        if (pendente != null) {
+            return pendente;
+        }
+        boolean temAceita = conexaoRepository.existsByCliente_UsuarioIdAndAdvogado_UsuarioIdAndStatus(
+                clienteId,
+                advogadoId,
+                StatusConexaoEnum.ACEITA
+        );
+        if (!temAceita) {
+            throw new CustomError(
+                    "É necessário ter uma conexão aceita com o advogado para avaliar",
+                    HttpStatus.FORBIDDEN,
+                    "FORBIDDEN"
+            );
+        }
+        throw new CustomError(
+                "Você já avaliou esta conexão",
+                HttpStatus.CONFLICT,
+                "CONFLICT"
+        );
+    }
+
+    private ConexaoEntity resolverConexaoAceitaSemAvaliacao(UUID clienteId, UUID advogadoId) {
+        List<ConexaoEntity> aceitas = conexaoRepository
+                .findByCliente_UsuarioIdAndAdvogado_UsuarioIdAndStatusOrderByCreatedAtAsc(
+                        clienteId,
+                        advogadoId,
+                        StatusConexaoEnum.ACEITA
+                );
+        for (ConexaoEntity conexao : aceitas) {
+            if (!avaliacaoAdvogadoRepository.existsByConexao_Id(conexao.getId())) {
+                return conexao;
+            }
+        }
+        return null;
     }
 
     private AvaliacaoItemResponseDTO toAvaliacaoItem(AvaliacaoAdvogadoEntity avaliacao, UUID usuarioAutenticadoId) {

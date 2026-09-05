@@ -82,11 +82,19 @@ public class NotificacaoInsistenteServiceImp implements NotificacaoInsistenteSer
     }
 
     private boolean reinsistirConexao(ConexaoEntity conexao, LocalDateTime agora) {
+        if (conexao.getVisualizadaEm() != null) {
+            return false;
+        }
+
         Optional<NotificacaoEntity> existente = notificacaoRepository
                 .findFirstByReferenciaIdAndTipoOrderByCreatedAtAsc(
                         conexao.getId(),
                         TipoNotificacaoEnum.CONEXAO_SOLICITADA
                 );
+
+        if (existente.map(NotificacaoEntity::getLidaEm).isPresent()) {
+            return false;
+        }
 
         String nomeCliente = conexao.getCliente().getUsuario().getNomeCompleto();
         String tituloSolicitacao = conexao.getSolicitacao().getTitulo();

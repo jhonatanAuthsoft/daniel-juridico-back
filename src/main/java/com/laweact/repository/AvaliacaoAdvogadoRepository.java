@@ -41,6 +41,10 @@ public interface AvaliacaoAdvogadoRepository extends JpaRepository<AvaliacaoAdvo
             UUID clienteId
     );
 
+    boolean existsByConexao_Id(UUID conexaoId);
+
+    Optional<AvaliacaoAdvogadoEntity> findByConexao_Id(UUID conexaoId);
+
     @Query("""
             SELECT COALESCE(AVG(a.nota), 0)
             FROM AvaliacaoAdvogadoEntity a

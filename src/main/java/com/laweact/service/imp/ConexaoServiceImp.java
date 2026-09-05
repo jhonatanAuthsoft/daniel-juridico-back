@@ -4,9 +4,13 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -14,8 +18,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.laweact.config.exception.CustomError;
+import com.laweact.dto.conexao.ConexaoListagemResponseDTO;
 import com.laweact.dto.conexao.ConexaoResponseDTO;
 import com.laweact.dto.conexao.CriarConexaoInputDTO;
+import com.laweact.dto.shared.PaginationInfo;
 import com.laweact.model.entity.AdvogadoEntity;
 import com.laweact.model.entity.AvaliacaoAdvogadoEntity;
 import com.laweact.model.entity.ClienteEntity;
@@ -23,10 +29,12 @@ import com.laweact.model.entity.ConexaoEntity;
 import com.laweact.model.entity.EnderecoEntity;
 import com.laweact.model.entity.SolicitacaoEntity;
 import com.laweact.model.entity.UsuarioEntity;
+import com.laweact.model.enums.DisponibilidadeAdvogadoEnum;
 import com.laweact.model.enums.PerfilUsuarioEnum;
 import com.laweact.model.enums.StatusConexaoEnum;
 import com.laweact.model.enums.StatusSolicitacaoEnum;
 import com.laweact.model.enums.TipoNotificacaoEnum;
+import com.laweact.model.enums.UrgenciaSolicitacaoEnum;
 import com.laweact.repository.AdvogadoRepository;
 import com.laweact.repository.AvaliacaoAdvogadoRepository;
 import com.laweact.repository.ClienteRepository;
@@ -86,6 +94,14 @@ public class ConexaoServiceImp implements ConexaoService {
 
         AdvogadoEntity advogado = advogadoRepository.findByUsuarioId(input.advogadoId())
                 .orElseThrow(() -> new CustomError("Advogado não encontrado", HttpStatus.NOT_FOUND));
+
+        if (advogado.getDisponibilidade() != DisponibilidadeAdvogadoEnum.DISPONIVEL) {
+            throw new CustomError(
+                    "Este advogado está indisponível para novas conexões no momento",
+                    HttpStatus.CONFLICT,
+                    "LAWYER_UNAVAILABLE"
+            );
+        }
 
         if (!solicitacaoMatchRepository.existsBySolicitacao_IdAndAdvogado_UsuarioId(
                 solicitacao.getId(),
@@ -197,14 +213,96 @@ public class ConexaoServiceImp implements ConexaoService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<ConexaoResponseDTO> listarDoUsuarioAutenticado(StatusConexaoEnum status) {
+    @Transactional
+    public ConexaoResponseDTO marcarVisualizadaDoAdvogadoAutenticado(UUID conexaoId) {
         UsuarioEntity usuario = obterUsuarioAutenticado();
-        List<ConexaoEntity> lista = switch (usuario.getPerfil()) {
-            case CLIENTE -> conexaoRepository.findByCliente(usuario.getId(), status);
-            case ADVOGADO -> conexaoRepository.findByAdvogado(usuario.getId(), status);
+        if (usuario.getPerfil() != PerfilUsuarioEnum.ADVOGADO) {
+            throw new CustomError("Apenas advogados podem visualizar conexão", HttpStatus.FORBIDDEN, "FORBIDDEN");
+        }
+
+        ConexaoEntity conexao = carregarDetalhada(conexaoId);
+        if (!conexao.getAdvogado().getUsuarioId().equals(usuario.getId())) {
+            throw new CustomError("Conexão de outro advogado", HttpStatus.FORBIDDEN, "FORBIDDEN");
+        }
+
+        if (conexao.getVisualizadaEm() == null) {
+            conexao.setVisualizadaEm(LocalDateTime.now());
+            conexaoRepository.save(conexao);
+        }
+
+        return toResponse(conexao);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ListagemPaginada listarDoUsuarioAutenticado(
+            int limit,
+            int offset,
+            List<StatusConexaoEnum> status,
+            UrgenciaSolicitacaoEnum urgencia,
+            String busca
+    ) {
+        UsuarioEntity usuario = obterUsuarioAutenticado();
+        String buscaNormalizada = (busca == null || busca.isBlank()) ? "" : busca.trim();
+        int offsetNormalizado = limit > 0 ? (Math.max(offset, 0) / limit) * limit : 0;
+        Pageable pageable = limit > 0
+                ? PageRequest.of(offsetNormalizado / limit, limit)
+                : Pageable.unpaged();
+        List<StatusConexaoEnum> statuses = statusParaFiltro(status);
+
+        Page<ConexaoEntity> page = switch (usuario.getPerfil()) {
+            case CLIENTE -> conexaoRepository.findForCliente(
+                    usuario.getId(), statuses, urgencia, buscaNormalizada, pageable);
+            case ADVOGADO -> conexaoRepository.findForAdvogado(
+                    usuario.getId(), statuses, urgencia, buscaNormalizada, pageable);
         };
-        return lista.stream().map(this::toResponse).toList();
+
+        ConexaoListagemResponseDTO data = ConexaoListagemResponseDTO.builder()
+                .items(page.getContent().stream().map(this::toResponse).toList())
+                .contagemPorUrgencia(carregarContagemPorUrgencia(usuario, statuses))
+                .contagemPorStatus(carregarContagemPorStatus(usuario))
+                .build();
+
+        return new ListagemPaginada(
+                data,
+                PaginationInfo.of(limit, offsetNormalizado, page.getTotalElements())
+        );
+    }
+
+    private List<StatusConexaoEnum> statusParaFiltro(List<StatusConexaoEnum> status) {
+        if (status == null || status.isEmpty()) {
+            return List.of(StatusConexaoEnum.values());
+        }
+        return List.copyOf(status);
+    }
+
+    private Map<UrgenciaSolicitacaoEnum, Long> carregarContagemPorUrgencia(
+            UsuarioEntity usuario,
+            List<StatusConexaoEnum> statuses
+    ) {
+        List<Object[]> linhas = switch (usuario.getPerfil()) {
+            case CLIENTE -> conexaoRepository.countGroupedByUrgenciaForCliente(usuario.getId(), statuses);
+            case ADVOGADO -> conexaoRepository.countGroupedByUrgenciaForAdvogado(usuario.getId(), statuses);
+        };
+
+        Map<UrgenciaSolicitacaoEnum, Long> contagem = ConexaoListagemResponseDTO.contagemVazia();
+        for (Object[] linha : linhas) {
+            contagem.put((UrgenciaSolicitacaoEnum) linha[0], (Long) linha[1]);
+        }
+        return contagem;
+    }
+
+    private Map<StatusConexaoEnum, Long> carregarContagemPorStatus(UsuarioEntity usuario) {
+        List<Object[]> linhas = switch (usuario.getPerfil()) {
+            case CLIENTE -> conexaoRepository.countGroupedByStatusForCliente(usuario.getId());
+            case ADVOGADO -> conexaoRepository.countGroupedByStatusForAdvogado(usuario.getId());
+        };
+
+        Map<StatusConexaoEnum, Long> contagem = ConexaoListagemResponseDTO.contagemStatusVazia();
+        for (Object[] linha : linhas) {
+            contagem.put((StatusConexaoEnum) linha[0], (Long) linha[1]);
+        }
+        return contagem;
     }
 
     @Override
@@ -332,9 +430,7 @@ public class ConexaoServiceImp implements ConexaoService {
                 .orElse(null);
 
         AvaliacaoAdvogadoEntity avaliacaoCliente = avaliacaoAdvogadoRepository
-                .findByAdvogado_UsuarioIdAndCliente_UsuarioId(
-                        entity.getAdvogado().getUsuarioId(),
-                        cliente.getUsuarioId())
+                .findByConexao_Id(entity.getId())
                 .orElse(null);
         BigDecimal avaliacaoNota = avaliacaoCliente != null ? avaliacaoCliente.getNota() : null;
         String avaliacaoComentario = avaliacaoCliente != null ? avaliacaoCliente.getComentario() : null;
@@ -348,6 +444,7 @@ public class ConexaoServiceImp implements ConexaoService {
                 .criadoEm(entity.getCreatedAt())
                 .decididoEm(entity.getDecididoEm())
                 .canceladoEm(entity.getCanceladoEm())
+                .visualizadaEm(entity.getVisualizadaEm())
                 .telefone(aceita ? usuarioAdvogado.getTelefone() : null)
                 .email(aceita ? usuarioAdvogado.getEmail() : null)
                 .nomeAdvogado(entity.getAdvogado().getNomeCompleto())

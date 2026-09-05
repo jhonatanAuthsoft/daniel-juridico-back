@@ -262,6 +262,25 @@ class MatchingCalculatorTest {
     }
 
     @Test
+    @DisplayName("escolhe a modalidade compatível mais específica para exibir no card")
+    void shouldPickMostSpecificCompatibleModalityForCard() {
+        assertThat(MatchingCalculator.escolherCodigoModalidade(
+                ModalidadeSolicitacaoEnum.CONSULTORIA,
+                Set.of("PAUTISTA", "CONSULTOR", "GENERALISTA")
+        )).isEqualTo("CONSULTOR");
+
+        assertThat(MatchingCalculator.escolherCodigoModalidade(
+                ModalidadeSolicitacaoEnum.PROCESSO,
+                Set.of("GENERALISTA", "PAUTISTA")
+        )).isEqualTo("PAUTISTA");
+
+        assertThat(MatchingCalculator.escolherCodigoModalidade(
+                ModalidadeSolicitacaoEnum.CONSULTORIA,
+                Set.of("NENHUMA_DAS_ANTERIORES")
+        )).isEqualTo("NENHUMA_DAS_ANTERIORES");
+    }
+
+    @Test
     @DisplayName("score abaixo de 40 fica fora da listagem")
     void shouldRejectScoreBelowCut() {
         CriteriosMatching criterios = CriteriosMatching.builder()

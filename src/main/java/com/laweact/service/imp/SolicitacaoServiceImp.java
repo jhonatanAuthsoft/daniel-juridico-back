@@ -1,5 +1,6 @@
 package com.laweact.service.imp;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.laweact.config.exception.CustomError;
+import com.laweact.dto.advogado.CatalogoItemResponseDTO;
 import com.laweact.dto.shared.PaginationInfo;
 import com.laweact.dto.solicitacao.CriarSolicitacaoInputDTO;
 import com.laweact.dto.solicitacao.CriarSolicitacaoResponseDTO;
@@ -25,6 +27,7 @@ import com.laweact.dto.solicitacao.SolicitacaoListagemResponseDTO;
 import com.laweact.dto.solicitacao.SolicitacaoMatchResponseDTO;
 import com.laweact.model.entity.AdvogadoEntity;
 import com.laweact.model.entity.ClienteEntity;
+import com.laweact.model.entity.EnderecoEntity;
 import com.laweact.model.entity.EspecialidadeEntity;
 import com.laweact.model.entity.SolicitacaoEntity;
 import com.laweact.model.entity.SolicitacaoMatchEntity;
@@ -33,8 +36,10 @@ import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.model.enums.PerfilUsuarioEnum;
 import com.laweact.model.enums.StatusConexaoEnum;
 import com.laweact.model.enums.StatusSolicitacaoEnum;
+import com.laweact.repository.AdvogadoModalidadeRepository;
 import com.laweact.repository.ClienteRepository;
 import com.laweact.repository.ConexaoRepository;
+import com.laweact.repository.EnderecoRepository;
 import com.laweact.repository.EspecialidadeRepository;
 import com.laweact.repository.SolicitacaoMatchRepository;
 import com.laweact.repository.SolicitacaoRepository;
@@ -42,6 +47,7 @@ import com.laweact.repository.SubespecialidadeRepository;
 import com.laweact.repository.UsuarioRepository;
 import com.laweact.service.MatchingService;
 import com.laweact.service.SolicitacaoService;
+import com.laweact.service.matching.MatchingCalculator;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -63,6 +69,8 @@ public class SolicitacaoServiceImp implements SolicitacaoService {
     private final UsuarioRepository usuarioRepository;
     private final EspecialidadeRepository especialidadeRepository;
     private final SubespecialidadeRepository subespecialidadeRepository;
+    private final EnderecoRepository enderecoRepository;
+    private final AdvogadoModalidadeRepository advogadoModalidadeRepository;
     private final MatchingService matchingService;
 
     @Override
@@ -150,11 +158,42 @@ public class SolicitacaoServiceImp implements SolicitacaoService {
     @Override
     @Transactional
     public List<SolicitacaoMatchResponseDTO> listarMatches(UUID solicitacaoId) {
-        obterSolicitacaoDoClienteAutenticado(solicitacaoId);
+        SolicitacaoEntity solicitacao = obterSolicitacaoDoClienteAutenticado(solicitacaoId);
+        List<SolicitacaoMatchEntity> ranking =
+                solicitacaoMatchRepository.findRankingBySolicitacaoId(solicitacaoId);
+        if (ranking.isEmpty()) {
+            return List.of();
+        }
 
-        return solicitacaoMatchRepository.findRankingBySolicitacaoId(solicitacaoId)
+        List<UUID> advogadoIds = ranking.stream()
+                .map(match -> match.getAdvogado().getUsuarioId())
+                .toList();
+
+        Map<UUID, EnderecoEntity> enderecosPorAdvogado = enderecoRepository
+                .findByUsuario_IdIn(advogadoIds)
                 .stream()
-                .map(this::toMatchResponse)
+                .collect(Collectors.toMap(EnderecoEntity::getUsuarioId, endereco -> endereco, (a, b) -> a));
+
+        Map<UUID, List<String>> modalidadesPorAdvogado = new HashMap<>();
+        Map<String, String> nomePorCodigo = new HashMap<>();
+        for (Object[] row : advogadoModalidadeRepository.findCodigoENomeByAdvogadoIds(advogadoIds)) {
+            UUID advogadoId = (UUID) row[0];
+            String codigo = (String) row[1];
+            String nome = (String) row[2];
+            modalidadesPorAdvogado.computeIfAbsent(advogadoId, ignored -> new ArrayList<>()).add(codigo);
+            if (codigo != null) {
+                nomePorCodigo.putIfAbsent(codigo, nome);
+            }
+        }
+
+        return ranking.stream()
+                .map(match -> toMatchResponse(
+                        match,
+                        solicitacao,
+                        enderecosPorAdvogado,
+                        modalidadesPorAdvogado,
+                        nomePorCodigo
+                ))
                 .toList();
     }
 
@@ -260,10 +299,30 @@ public class SolicitacaoServiceImp implements SolicitacaoService {
                 .collect(Collectors.toMap(EspecialidadeEntity::getCodigo, EspecialidadeEntity::getNome));
     }
 
-    private SolicitacaoMatchResponseDTO toMatchResponse(SolicitacaoMatchEntity match) {
+    private SolicitacaoMatchResponseDTO toMatchResponse(
+            SolicitacaoMatchEntity match,
+            SolicitacaoEntity solicitacao,
+            Map<UUID, EnderecoEntity> enderecosPorAdvogado,
+            Map<UUID, List<String>> modalidadesPorAdvogado,
+            Map<String, String> nomePorCodigo
+    ) {
         AdvogadoEntity advogado = match.getAdvogado();
+        UUID advogadoId = advogado.getUsuarioId();
+        EnderecoEntity endereco = enderecosPorAdvogado.get(advogadoId);
+        String codigoModalidade = MatchingCalculator.escolherCodigoModalidade(
+                solicitacao.getModalidade(),
+                modalidadesPorAdvogado.getOrDefault(advogadoId, List.of())
+        );
+        CatalogoItemResponseDTO modalidadeAtuacao = null;
+        if (codigoModalidade != null) {
+            modalidadeAtuacao = CatalogoItemResponseDTO.builder()
+                    .codigo(codigoModalidade)
+                    .nome(nomePorCodigo.getOrDefault(codigoModalidade, codigoModalidade))
+                    .build();
+        }
+
         return SolicitacaoMatchResponseDTO.builder()
-                .advogadoId(advogado.getUsuarioId())
+                .advogadoId(advogadoId)
                 .nome(advogado.getNomeSocial() != null && !advogado.getNomeSocial().isBlank()
                         ? advogado.getNomeSocial()
                         : advogado.getNomeCompleto())
@@ -271,8 +330,12 @@ public class SolicitacaoServiceImp implements SolicitacaoService {
                 .posicao(match.getPosicao())
                 .compatibilidade(match.getScore())
                 .nivelLocalidade(match.getNivelLocalidade())
+                .disponibilidade(advogado.getDisponibilidade())
                 .mediaAvaliacoes(advogado.getMediaAvaliacoes())
                 .totalAvaliacoes(advogado.getTotalAvaliacoes())
+                .bairro(endereco != null ? endereco.getBairro() : null)
+                .cidade(endereco != null ? endereco.getCidade() : null)
+                .modalidadeAtuacao(modalidadeAtuacao)
                 .pontuacao(SolicitacaoMatchResponseDTO.PontuacaoMatchDTO.builder()
                         .modalidade(match.getPontosModalidade())
                         .localidade(match.getPontosLocalidade())

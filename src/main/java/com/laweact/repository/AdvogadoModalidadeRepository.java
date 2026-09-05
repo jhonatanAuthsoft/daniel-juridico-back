@@ -21,4 +21,13 @@ public interface AdvogadoModalidadeRepository extends JpaRepository<AdvogadoModa
             where am.id.advogadoId in :advogadoIds
             """)
     List<Object[]> findCodigosByAdvogadoIds(@Param("advogadoIds") Collection<UUID> advogadoIds);
+
+    /** Linhas [advogadoId, codigo, nome] para o card de advogados compatíveis. */
+    @Query("""
+            select am.id.advogadoId, m.codigo, m.nome
+            from AdvogadoModalidadeEntity am
+            join am.modalidade m
+            where am.id.advogadoId in :advogadoIds
+            """)
+    List<Object[]> findCodigoENomeByAdvogadoIds(@Param("advogadoIds") Collection<UUID> advogadoIds);
 }

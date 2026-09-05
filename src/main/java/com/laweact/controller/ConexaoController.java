@@ -13,10 +13,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.laweact.dto.conexao.ConexaoListagemResponseDTO;
 import com.laweact.dto.conexao.ConexaoResponseDTO;
 import com.laweact.dto.conexao.CriarConexaoInputDTO;
 import com.laweact.dto.shared.ApiResponse;
 import com.laweact.model.enums.StatusConexaoEnum;
+import com.laweact.model.enums.UrgenciaSolicitacaoEnum;
 import com.laweact.service.ConexaoService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -67,12 +69,37 @@ public class ConexaoController {
         return ResponseEntity.ok(ApiResponse.success(data, "Conexão recusada com sucesso"));
     }
 
+    @PostMapping("/{id}/visualizar")
+    @Operation(
+            summary = "Marcar conexão como visualizada",
+            description = "Advogado registra a primeira abertura da solicitação. Idempotente: preserva a data original"
+    )
+    public ResponseEntity<ApiResponse<ConexaoResponseDTO>> visualizar(@PathVariable UUID id) {
+        ConexaoResponseDTO data = conexaoService.marcarVisualizadaDoAdvogadoAutenticado(id);
+        return ResponseEntity.ok(ApiResponse.success(data, "Conexão marcada como visualizada"));
+    }
+
     @GetMapping
-    @Operation(summary = "Listar conexões", description = "Inbox do cliente ou advogado autenticado, com filtro opcional por status")
-    public ResponseEntity<ApiResponse<List<ConexaoResponseDTO>>> listar(
-            @RequestParam(required = false) StatusConexaoEnum status
+    @Operation(
+            summary = "Listar conexões",
+            description = "Inbox do cliente ou advogado autenticado, com filtros opcionais por status (repetível), "
+                    + "grau de urgência e busca livre (nome da contraparte, título, descrição e cidade). Para o "
+                    + "advogado a ordenação coloca as emergências no topo. Retorna a contagem global por urgência "
+                    + "e por status para os filtros da listagem. Sem `limit` a lista vem inteira, sem paginar"
+    )
+    public ResponseEntity<ApiResponse<ConexaoListagemResponseDTO>> listar(
+            @RequestParam(defaultValue = "0") int limit,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(required = false) List<StatusConexaoEnum> status,
+            @RequestParam(required = false) UrgenciaSolicitacaoEnum urgencia,
+            @RequestParam(required = false) String busca
     ) {
-        List<ConexaoResponseDTO> data = conexaoService.listarDoUsuarioAutenticado(status);
-        return ResponseEntity.ok(ApiResponse.success(data, "Consulta realizada com sucesso"));
+        ConexaoService.ListagemPaginada listagem =
+                conexaoService.listarDoUsuarioAutenticado(limit, offset, status, urgencia, busca);
+        return ResponseEntity.ok(ApiResponse.success(
+                listagem.data(),
+                "Consulta realizada com sucesso",
+                listagem.pagination()
+        ));
     }
 }

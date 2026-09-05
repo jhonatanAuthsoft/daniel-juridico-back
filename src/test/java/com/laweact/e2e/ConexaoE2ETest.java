@@ -253,9 +253,10 @@ class ConexaoE2ETest extends BaseE2ETest {
         autenticarComo("bruna.conexao@laweact.com");
         ResponseEntity<JsonNode> lista = api.get("/conexoes?status=PENDENTE");
         assertSuccess(lista, HttpStatus.OK);
-        assertThat(lista.getBody().path("data").isArray()).isTrue();
-        assertThat(lista.getBody().path("data").size()).isEqualTo(1);
-        assertThat(lista.getBody().path("data").get(0).path("status").asText()).isEqualTo("PENDENTE");
+        JsonNode items = lista.getBody().path("data").path("items");
+        assertThat(items.isArray()).isTrue();
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).path("status").asText()).isEqualTo("PENDENTE");
     }
 
     @Test
@@ -303,5 +304,30 @@ class ConexaoE2ETest extends BaseE2ETest {
                 Map.of("solicitacaoId", solicitacaoId.toString(), "advogadoId", rjId.toString())
         );
         assertErrorCode(response, HttpStatus.BAD_REQUEST, "NO_MATCH");
+    }
+
+    @Test
+    @DisplayName("advogado indisponível não recebe nova conexão")
+    void shouldRejectConnectionWhenLawyerUnavailable() {
+        UUID solicitacaoId = criarSolicitacaoComMatch();
+        UUID advogadoId = UUID.fromString(jdbcTemplate.queryForObject(
+                "SELECT advogado_id::text FROM solicitacao_matches WHERE solicitacao_id = ?::uuid LIMIT 1",
+                String.class,
+                solicitacaoId
+        ));
+
+        autenticarComo("bruna.conexao@laweact.com");
+        ResponseEntity<JsonNode> patch = api.patch(
+                "/advogados/me/disponibilidade",
+                Map.of("disponibilidade", "INDISPONIVEL")
+        );
+        assertSuccess(patch, HttpStatus.OK);
+
+        autenticarComo("cliente.conexao@laweact.com");
+        ResponseEntity<JsonNode> response = api.post(
+                "/conexoes",
+                Map.of("solicitacaoId", solicitacaoId.toString(), "advogadoId", advogadoId.toString())
+        );
+        assertErrorCode(response, HttpStatus.CONFLICT, "LAWYER_UNAVAILABLE");
     }
 }

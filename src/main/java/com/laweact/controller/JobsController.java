@@ -9,8 +9,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.laweact.config.JobsApiKeyProperties;
 import com.laweact.config.exception.CustomError;
+import com.laweact.dto.job.AssinaturaReconciliacaoJobResultDTO;
 import com.laweact.dto.job.NotificacaoInsistenteJobResultDTO;
 import com.laweact.dto.shared.ApiResponse;
+import com.laweact.service.AssinaturaService;
 import com.laweact.service.NotificacaoInsistenteService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,11 +27,12 @@ public class JobsController {
 
     private final JobsApiKeyProperties jobsApiKeyProperties;
     private final NotificacaoInsistenteService notificacaoInsistenteService;
+    private final AssinaturaService assinaturaService;
 
     @PostMapping("/notificacoes-insistentes")
     @Operation(
             summary = "Processar notificações insistentes",
-            description = "Reenvia lembretes de conexões PENDENTE com urgência EMERGENCIA/URGENTE. Auth via X-Api-Key."
+            description = "Reenvia lembretes de conexões PENDENTE com urgência EMERGENCIA/URGENTE ainda não abertas. Auth via X-Api-Key. O scheduler interno avalia o lote a cada hora e só reenvia após 12h do último lembrete."
     )
     public ResponseEntity<ApiResponse<NotificacaoInsistenteJobResultDTO>> processarNotificacoesInsistentes(
             @RequestHeader(value = "X-Api-Key", required = false) String apiKey
@@ -40,5 +43,21 @@ public class JobsController {
 
         NotificacaoInsistenteJobResultDTO data = notificacaoInsistenteService.processar();
         return ResponseEntity.ok(ApiResponse.success(data, "Lote processado"));
+    }
+
+    @PostMapping("/assinaturas-reconciliar")
+    @Operation(
+            summary = "Reconciliar assinaturas",
+            description = "Expira trials vencidos e sincroniza assinaturas com as lojas. Auth via X-Api-Key."
+    )
+    public ResponseEntity<ApiResponse<AssinaturaReconciliacaoJobResultDTO>> reconciliarAssinaturas(
+            @RequestHeader(value = "X-Api-Key", required = false) String apiKey
+    ) {
+        if (!jobsApiKeyProperties.matches(apiKey)) {
+            throw new CustomError("API key inválida", HttpStatus.UNAUTHORIZED);
+        }
+
+        AssinaturaReconciliacaoJobResultDTO data = assinaturaService.reconciliar();
+        return ResponseEntity.ok(ApiResponse.success(data, "Reconciliação concluída"));
     }
 }

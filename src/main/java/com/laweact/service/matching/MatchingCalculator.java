@@ -4,6 +4,7 @@ import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -39,6 +40,15 @@ public final class MatchingCalculator {
             ModalidadeSolicitacaoEnum.CONSULTORIA, Set.of("CONSULTOR", "GENERALISTA"),
             ModalidadeSolicitacaoEnum.PROCESSO, Set.of("PAUTISTA", "GENERALISTA", "CORRESPONDENTE"),
             ModalidadeSolicitacaoEnum.MEDIACAO, Set.of("CONSULTOR", "GENERALISTA")
+    );
+
+    /** Ordem de preferência no card: mais específica antes de ampla. */
+    private static final List<String> ORDEM_EXIBICAO_MODALIDADE = List.of(
+            "PAUTISTA",
+            "CONSULTOR",
+            "CORRESPONDENTE",
+            "GENERALISTA",
+            MODALIDADE_NENHUMA
     );
 
     private static final Map<FormaCobrancaSolicitacaoEnum, Set<String>> COBRANCAS_COMPATIVEIS = Map.of(
@@ -126,6 +136,40 @@ public final class MatchingCalculator {
             }
         }
         return mesmoEstado ? NivelLocalidadeEnum.MESMO_ESTADO : NivelLocalidadeEnum.FORA_ESTADO;
+    }
+
+    /**
+     * Modalidade do advogado a exibir no card de compatíveis: a mais específica
+     * que atende a solicitação; se nenhuma for compatível, a primeira do cadastro.
+     */
+    public static String escolherCodigoModalidade(
+            ModalidadeSolicitacaoEnum modalidadeSolicitacao,
+            Collection<String> modalidadesAdvogado
+    ) {
+        if (modalidadesAdvogado == null || modalidadesAdvogado.isEmpty()) {
+            return null;
+        }
+        Set<String> doAdvogado = new HashSet<>();
+        for (String codigo : modalidadesAdvogado) {
+            if (!isBlank(codigo)) {
+                doAdvogado.add(normalizar(codigo));
+            }
+        }
+        if (doAdvogado.isEmpty()) {
+            return null;
+        }
+        Set<String> compativeis = MODALIDADES_COMPATIVEIS.getOrDefault(modalidadeSolicitacao, Set.of());
+        for (String codigo : ORDEM_EXIBICAO_MODALIDADE) {
+            if (doAdvogado.contains(codigo) && compativeis.contains(codigo)) {
+                return codigo;
+            }
+        }
+        for (String codigo : ORDEM_EXIBICAO_MODALIDADE) {
+            if (doAdvogado.contains(codigo)) {
+                return codigo;
+            }
+        }
+        return doAdvogado.iterator().next();
     }
 
     private static int pontuarSubespecialidade(

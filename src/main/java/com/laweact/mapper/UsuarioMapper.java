@@ -3,6 +3,7 @@ package com.laweact.mapper;
 import org.springframework.stereotype.Component;
 
 import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
+import com.laweact.dto.assinatura.AssinaturaResponseDTO;
 import com.laweact.dto.cliente.ClienteDetalheResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
@@ -52,12 +53,14 @@ public class UsuarioMapper {
     public MeResponseDTO toMeResponse(
             UsuarioEntity usuario,
             ClienteDetalheResponseDTO cliente,
-            AdvogadoDetalheResponseDTO advogado
+            AdvogadoDetalheResponseDTO advogado,
+            AssinaturaResponseDTO assinatura
     ) {
         return MeResponseDTO.builder()
                 .usuario(toResponseDTO(usuario))
                 .cliente(cliente)
                 .advogado(advogado)
+                .assinatura(assinatura)
                 .build();
     }
 }

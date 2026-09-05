@@ -146,4 +146,23 @@ class NotificacaoInsistenteServiceImpTest {
         assertThat(textoCaptor.getValue()).contains("emergência");
         assertThat(conexao.getUltimoLembreteInsistenteEm()).isNotNull();
     }
+
+    @Test
+    @DisplayName("usa intervalo diário (24h) como corte de elegibilidade")
+    void shouldUseDailyCutoff() {
+        when(conexaoRepository.findPendentesParaLembreteInsistente(any(), any(), any()))
+                .thenReturn(List.of());
+
+        LocalDateTime before = LocalDateTime.now().minusHours(24);
+        service.processar();
+        LocalDateTime after = LocalDateTime.now().minusHours(24);
+
+        ArgumentCaptor<LocalDateTime> limiteCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(conexaoRepository).findPendentesParaLembreteInsistente(
+                eq(StatusConexaoEnum.PENDENTE),
+                any(Set.class),
+                limiteCaptor.capture()
+        );
+        assertThat(limiteCaptor.getValue()).isBetween(before.minusSeconds(1), after.plusSeconds(1));
+    }
 }

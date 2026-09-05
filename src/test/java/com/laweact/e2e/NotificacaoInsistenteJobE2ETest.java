@@ -128,7 +128,7 @@ class NotificacaoInsistenteJobE2ETest extends BaseE2ETest {
         assertThat(lida.getBody().path("data").path("lidaEm").asText()).isNotBlank();
 
         jdbcTemplate.update(
-                "UPDATE conexoes SET criado_em = NOW() - INTERVAL '2 hours' WHERE id = ?::uuid",
+                "UPDATE conexoes SET criado_em = NOW() - INTERVAL '25 hours' WHERE id = ?::uuid",
                 conexaoId
         );
 
@@ -161,6 +161,47 @@ class NotificacaoInsistenteJobE2ETest extends BaseE2ETest {
     }
 
     @Test
+    @DisplayName("EMERGENCIA pendente com menos de 24h → não reinsiste")
+    void shouldNotReinsistBeforeDailyInterval() {
+        cadastrarAdvogado("Bruna Daily", "bruna.daily.insist@laweact.com", "11144477735", "620010");
+        autenticarCliente("cliente.daily.insist@laweact.com", "52998224725");
+
+        ResponseEntity<JsonNode> criacao = api.post(
+                "/solicitacoes",
+                demanda(UrgenciaSolicitacaoEnum.EMERGENCIA)
+        );
+        assertSuccess(criacao, HttpStatus.CREATED);
+        UUID solicitacaoId = UUID.fromString(criacao.getBody().path("data").path("id").asText());
+        UUID advogadoId = UUID.fromString(jdbcTemplate.queryForObject(
+                "SELECT advogado_id::text FROM solicitacao_matches WHERE solicitacao_id = ?::uuid LIMIT 1",
+                String.class,
+                solicitacaoId
+        ));
+
+        ResponseEntity<JsonNode> criada = api.post(
+                "/conexoes",
+                Map.of("solicitacaoId", solicitacaoId.toString(), "advogadoId", advogadoId.toString())
+        );
+        assertSuccess(criada, HttpStatus.CREATED);
+        String conexaoId = criada.getBody().path("data").path("id").asText();
+
+        jdbcTemplate.update(
+                "UPDATE conexoes SET criado_em = NOW() - INTERVAL '2 hours' WHERE id = ?::uuid",
+                conexaoId
+        );
+
+        api.logout();
+        ResponseEntity<JsonNode> job = api.postWithHeader(
+                "/jobs/notificacoes-insistentes",
+                Map.of(),
+                "X-Api-Key",
+                JOBS_API_KEY
+        );
+        assertSuccess(job, HttpStatus.OK);
+        assertThat(job.getBody().path("data").path("reenviadas").asInt()).isEqualTo(0);
+    }
+
+    @Test
     @DisplayName("após aceitar → job não reinsiste a conexão")
     void shouldNotReinsistAfterAccept() {
         cadastrarAdvogado("Bruna Done", "bruna.done.insist@laweact.com", "11144477735", "620002");
@@ -187,7 +228,7 @@ class NotificacaoInsistenteJobE2ETest extends BaseE2ETest {
         assertSuccess(api.post("/conexoes/" + conexaoId + "/aceitar", Map.of()), HttpStatus.OK);
 
         jdbcTemplate.update(
-                "UPDATE conexoes SET criado_em = NOW() - INTERVAL '2 hours' WHERE id = ?::uuid",
+                "UPDATE conexoes SET criado_em = NOW() - INTERVAL '25 hours' WHERE id = ?::uuid",
                 conexaoId
         );
 

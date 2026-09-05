@@ -5,6 +5,7 @@ import static com.laweact.e2e.support.ApiAssertions.assertSuccess;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.laweact.dto.solicitacao.CriarSolicitacaoInputDTO;
+import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.e2e.support.Fixtures;
 import com.laweact.model.enums.FormaCobrancaSolicitacaoEnum;
 import com.laweact.model.enums.ModalidadeSolicitacaoEnum;
@@ -51,6 +53,19 @@ class SolicitacaoMatchingE2ETest extends BaseE2ETest {
         );
         assertSuccess(response, HttpStatus.CREATED);
         api.logout();
+    }
+
+    private void autenticarComo(String email) {
+        api.logout();
+        ResponseEntity<JsonNode> login = api.post(
+                "/usuarios/login",
+                LoginUsuarioInputDTO.builder()
+                        .email(email)
+                        .senha(Fixtures.VALID_PASSWORD)
+                        .build()
+        );
+        assertSuccess(login, HttpStatus.OK);
+        api.authenticate(login.getBody().path("data").path("token").asText());
     }
 
     private String autenticarCliente(String email, String documento) {
@@ -94,6 +109,10 @@ class SolicitacaoMatchingE2ETest extends BaseE2ETest {
         assertThat(primeiro.path("posicao").asInt()).isEqualTo(1);
         assertThat(primeiro.path("compatibilidade").asInt()).isEqualTo(100);
         assertThat(primeiro.path("nivelLocalidade").asText()).isEqualTo("MESMA_CIDADE");
+        assertThat(primeiro.path("bairro").asText()).isEqualTo("Bela Vista");
+        assertThat(primeiro.path("cidade").asText()).isEqualTo("São Paulo");
+        assertThat(primeiro.path("modalidadeAtuacao").path("codigo").asText()).isEqualTo("GENERALISTA");
+        assertThat(primeiro.path("modalidadeAtuacao").path("nome").asText()).isEqualTo("Generalista");
         assertThat(primeiro.path("pontuacao").path("localidade").asInt()).isEqualTo(20);
 
         JsonNode segundo = lista.get(1);
@@ -158,5 +177,75 @@ class SolicitacaoMatchingE2ETest extends BaseE2ETest {
         ResponseEntity<JsonNode> matches = api.get("/solicitacoes/" + solicitacaoId + "/matches");
 
         assertErrorCode(matches, HttpStatus.FORBIDDEN, "FORBIDDEN");
+    }
+
+    @Test
+    @DisplayName("advogado indisponível não entra no ranking de matching")
+    void shouldExcludeUnavailableLawyerFromMatching() {
+        cadastrarAdvogado("Helena Disponível", "helena.disp@laweact.com", "11144477735", "500001",
+                "SP", "São Paulo", List.of("GENERALISTA"));
+
+        ResponseEntity<JsonNode> cadastro = api.post(
+                "/advogados/cadastrar",
+                Fixtures.advogadoParaMatching(
+                        "Igor Indisponível", "igor.indisp@laweact.com", "39053344705", "500002",
+                        "SP", "São Paulo", List.of("GENERALISTA")
+                )
+        );
+        assertSuccess(cadastro, HttpStatus.CREATED);
+        api.authenticate(cadastro.getBody().path("data").path("token").asText());
+        ResponseEntity<JsonNode> patch = api.patch(
+                "/advogados/me/disponibilidade",
+                Map.of("disponibilidade", "INDISPONIVEL")
+        );
+        assertSuccess(patch, HttpStatus.OK);
+        api.logout();
+
+        autenticarCliente("cliente.indisp.match@laweact.com", "52998224725");
+        ResponseEntity<JsonNode> criacao = api.post("/solicitacoes", demandaConsultoriaSaoPaulo());
+        assertSuccess(criacao, HttpStatus.CREATED);
+        assertThat(criacao.getBody().path("data").path("totalMatches").asInt()).isEqualTo(1);
+
+        String solicitacaoId = criacao.getBody().path("data").path("id").asText();
+        ResponseEntity<JsonNode> matches = api.get("/solicitacoes/" + solicitacaoId + "/matches");
+        assertSuccess(matches, HttpStatus.OK);
+
+        JsonNode lista = matches.getBody().path("data");
+        assertThat(lista.size()).isEqualTo(1);
+        assertThat(lista.get(0).path("nome").asText()).isEqualTo("Helena Disponível");
+        assertThat(lista.get(0).path("disponibilidade").asText()).isEqualTo("DISPONIVEL");
+    }
+
+    @Test
+    @DisplayName("GET matches expõe a disponibilidade atual mesmo após o ranking")
+    void shouldExposeCurrentAvailabilityInMatches() {
+        cadastrarAdvogado("Helena Disponível", "helena.atual@laweact.com", "11144477735", "500003",
+                "SP", "São Paulo", List.of("GENERALISTA"));
+
+        autenticarCliente("cliente.disp.atual@laweact.com", "52998224725");
+        ResponseEntity<JsonNode> criacao = api.post("/solicitacoes", demandaConsultoriaSaoPaulo());
+        assertSuccess(criacao, HttpStatus.CREATED);
+        String solicitacaoId = criacao.getBody().path("data").path("id").asText();
+
+        ResponseEntity<JsonNode> matchesAntes = api.get("/solicitacoes/" + solicitacaoId + "/matches");
+        assertSuccess(matchesAntes, HttpStatus.OK);
+        JsonNode antes = matchesAntes.getBody().path("data");
+        assertThat(antes.size()).isEqualTo(1);
+        assertThat(antes.get(0).path("disponibilidade").asText()).isEqualTo("DISPONIVEL");
+
+        autenticarComo("helena.atual@laweact.com");
+        ResponseEntity<JsonNode> patch = api.patch(
+                "/advogados/me/disponibilidade",
+                Map.of("disponibilidade", "INDISPONIVEL")
+        );
+        assertSuccess(patch, HttpStatus.OK);
+
+        autenticarComo("cliente.disp.atual@laweact.com");
+        ResponseEntity<JsonNode> matchesDepois = api.get("/solicitacoes/" + solicitacaoId + "/matches");
+        assertSuccess(matchesDepois, HttpStatus.OK);
+        JsonNode depois = matchesDepois.getBody().path("data");
+        assertThat(depois.size()).isEqualTo(1);
+        assertThat(depois.get(0).path("nome").asText()).isEqualTo("Helena Disponível");
+        assertThat(depois.get(0).path("disponibilidade").asText()).isEqualTo("INDISPONIVEL");
     }
 }

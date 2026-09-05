@@ -237,4 +237,86 @@ class AdvogadoAvaliacaoCriarE2ETest extends BaseE2ETest {
         );
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
+
+    @Test
+    @DisplayName("comentário é opcional na criação")
+    void shouldAllowReviewWithoutComment() {
+        UUID advogadoId = prepararConexaoAceita(
+                "Lia Sem Comentario",
+                "lia.sem.comentario@laweact.com",
+                "11144477735",
+                "610006",
+                "cli.sem.comentario@laweact.com",
+                "52998224725"
+        );
+
+        ResponseEntity<JsonNode> criada = api.post(
+                "/advogados/" + advogadoId + "/avaliacoes",
+                Map.of("nota", "5.0")
+        );
+        assertSuccess(criada, HttpStatus.CREATED);
+        JsonNode item = criada.getBody().path("data");
+        assertThat(item.path("nota").decimalValue()).isEqualByComparingTo(new BigDecimal("5.0"));
+        assertThat(item.path("comentario").isNull() || item.path("comentario").asText().isBlank())
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("mesmo cliente avalia duas conexões ACEITA do mesmo advogado")
+    void shouldAllowOneReviewPerConnection() {
+        UUID advogadoId = cadastrarAdvogadoMatching(
+                "Mario Duas Conexoes",
+                "mario.duas.conexoes@laweact.com",
+                "11144477735",
+                "610007"
+        );
+        cadastrarEAutenticarCliente("cli.duas.conexoes@laweact.com", "52998224725");
+        aceitarConexao(advogadoId, "mario.duas.conexoes@laweact.com", "cli.duas.conexoes@laweact.com");
+        aceitarConexao(advogadoId, "mario.duas.conexoes@laweact.com", "cli.duas.conexoes@laweact.com");
+
+        ResponseEntity<JsonNode> primeira = api.post(
+                "/advogados/" + advogadoId + "/avaliacoes",
+                Map.of("nota", "4.0", "comentario", "Primeira conexão.")
+        );
+        assertSuccess(primeira, HttpStatus.CREATED);
+
+        ResponseEntity<JsonNode> aindaPode = api.get("/advogados/" + advogadoId + "/avaliacoes");
+        assertSuccess(aindaPode, HttpStatus.OK);
+        assertThat(aindaPode.getBody().path("data").path("podeAvaliar").asBoolean()).isTrue();
+
+        ResponseEntity<JsonNode> segunda = api.post(
+                "/advogados/" + advogadoId + "/avaliacoes",
+                Map.of("nota", "5.0", "comentario", "Segunda conexão.")
+        );
+        assertSuccess(segunda, HttpStatus.CREATED);
+        assertThat(segunda.getBody().path("data").path("id").asText())
+                .isNotEqualTo(primeira.getBody().path("data").path("id").asText());
+
+        ResponseEntity<JsonNode> depois = api.get("/advogados/" + advogadoId + "/avaliacoes");
+        assertSuccess(depois, HttpStatus.OK);
+        JsonNode data = depois.getBody().path("data");
+        assertThat(data.path("podeAvaliar").asBoolean()).isFalse();
+        assertThat(data.path("totalAvaliacoes").asInt()).isEqualTo(2);
+    }
+
+    private String aceitarConexao(UUID advogadoId, String advEmail, String cliEmail) {
+        ResponseEntity<JsonNode> criacao = api.post("/solicitacoes", demandaSp());
+        assertSuccess(criacao, HttpStatus.CREATED);
+        UUID solicitacaoId = UUID.fromString(criacao.getBody().path("data").path("id").asText());
+
+        ResponseEntity<JsonNode> criada = api.post(
+                "/conexoes",
+                Map.of(
+                        "solicitacaoId", solicitacaoId.toString(),
+                        "advogadoId", advogadoId.toString()
+                )
+        );
+        assertSuccess(criada, HttpStatus.CREATED);
+        String conexaoId = criada.getBody().path("data").path("id").asText();
+
+        autenticarComo(advEmail);
+        assertSuccess(api.post("/conexoes/" + conexaoId + "/aceitar", Map.of()), HttpStatus.OK);
+        autenticarComo(cliEmail);
+        return conexaoId;
+    }
 }

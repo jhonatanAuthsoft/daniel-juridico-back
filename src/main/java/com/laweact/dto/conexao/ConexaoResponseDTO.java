@@ -21,6 +21,7 @@ public record ConexaoResponseDTO(
         LocalDateTime criadoEm,
         LocalDateTime decididoEm,
         LocalDateTime canceladoEm,
+        LocalDateTime visualizadaEm,
         String telefone,
         String email,
         String nomeAdvogado,

@@ -50,6 +50,10 @@ public class ConexaoEntity extends BaseEntity {
     @Column(name = "cancelado_em")
     private LocalDateTime canceladoEm;
 
+    /** Primeira abertura da solicitação pelo advogado; null = nunca aberta. */
+    @Column(name = "visualizada_em")
+    private LocalDateTime visualizadaEm;
+
     @Column(name = "ultimo_lembrete_insistente_em")
     private LocalDateTime ultimoLembreteInsistenteEm;
 }

@@ -32,7 +32,7 @@ public class JobsController {
     @PostMapping("/notificacoes-insistentes")
     @Operation(
             summary = "Processar notificações insistentes",
-            description = "Reenvia lembretes de conexões PENDENTE com urgência EMERGENCIA/URGENTE. Auth via X-Api-Key."
+            description = "Reenvia lembretes de conexões PENDENTE com urgência EMERGENCIA/URGENTE ainda não abertas. Auth via X-Api-Key. O scheduler interno avalia o lote a cada hora e só reenvia após 12h do último lembrete."
     )
     public ResponseEntity<ApiResponse<NotificacaoInsistenteJobResultDTO>> processarNotificacoesInsistentes(
             @RequestHeader(value = "X-Api-Key", required = false) String apiKey

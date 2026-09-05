@@ -225,6 +225,7 @@ public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
             join fetch c.solicitacao s
             where c.status = :status
               and s.urgencia in :urgencias
+              and c.visualizadaEm is null
               and (
                     (c.ultimoLembreteInsistenteEm is null and c.createdAt <= :limite)
                  or (c.ultimoLembreteInsistenteEm is not null and c.ultimoLembreteInsistenteEm <= :limite)

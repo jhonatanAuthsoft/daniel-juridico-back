@@ -47,7 +47,7 @@ class AdvogadoPerfilPublicoE2ETest extends BaseE2ETest {
         assertThat(data.path("universidade").asText()).isEqualTo("USP");
         assertThat(data.path("curso").asText()).isEqualTo("Direito");
         assertThat(data.path("anoFormacao").asInt()).isEqualTo(2015);
-        assertThat(data.path("atuacaoDesde").asText()).isEqualTo("2016-01-10");
+        assertThat(data.path("atuacaoDesde").asText()).isEqualTo("2016-03-15");
         assertThat(data.path("anosExperiencia").asInt()).isGreaterThanOrEqualTo(0);
         assertThat(data.path("mediaAvaliacoes").isNumber()).isTrue();
         assertThat(data.path("totalAvaliacoes").isNumber()).isTrue();

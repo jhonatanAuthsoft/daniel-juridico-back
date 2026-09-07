@@ -36,6 +36,9 @@ class UsuarioAtualizarSenhaE2ETest extends BaseE2ETest {
         assertThat(patch.getBody().path("data").path("mensagem").asText())
                 .isEqualTo("Senha alterada com sucesso");
 
+        ResponseEntity<JsonNode> meAposTroca = api.get("/usuarios/me");
+        assertThat(meAposTroca.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
         api.logout();
 
         ResponseEntity<JsonNode> loginAntigo = api.post(

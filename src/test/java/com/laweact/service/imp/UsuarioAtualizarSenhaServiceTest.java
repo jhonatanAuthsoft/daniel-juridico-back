@@ -35,6 +35,7 @@ import com.laweact.repository.AdvogadoRepository;
 import com.laweact.repository.ClienteRepository;
 import com.laweact.repository.UsuarioRepository;
 import com.laweact.service.ArquivoService;
+import com.laweact.service.AssinaturaService;
 import com.laweact.service.SessaoService;
 
 @ExtendWith(MockitoExtension.class)
@@ -65,6 +66,8 @@ class UsuarioAtualizarSenhaServiceTest {
     private ArquivoService arquivoService;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private AssinaturaService assinaturaService;
 
     @InjectMocks
     private UsuarioServiceImp service;
@@ -109,6 +112,7 @@ class UsuarioAtualizarSenhaServiceTest {
         assertThat(response.mensagem()).isEqualTo("Senha alterada com sucesso");
         assertThat(usuario.getSenha()).isEqualTo("hashed-new");
         verify(usuarioRepository).save(usuario);
+        verify(sessaoService).encerrarTodasDoUsuario(usuario.getId());
     }
 
     @Test

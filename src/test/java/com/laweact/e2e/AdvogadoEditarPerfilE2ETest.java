@@ -225,6 +225,8 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
         ResponseEntity<JsonNode> me = api.get("/usuarios/me");
         assertSuccess(me, HttpStatus.OK);
         assertThat(me.getBody().path("data").path("advogado").path("oabs").size()).isEqualTo(2);
+        assertThat(patch.getBody().path("data").path("perfil").path("atuacaoDesde").asText())
+                .isEqualTo("2016-03-15");
     }
 
     @Test

@@ -25,6 +25,7 @@ import com.laweact.model.entity.NotificacaoEntity;
 import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.model.enums.StatusEnvioNotificacaoEnum;
 import com.laweact.model.enums.TipoNotificacaoEnum;
+import com.laweact.model.enums.UrgenciaSolicitacaoEnum;
 import com.laweact.repository.DispositivoPushRepository;
 import com.laweact.repository.NotificacaoRepository;
 import com.laweact.repository.UsuarioRepository;
@@ -106,11 +107,12 @@ class NotificacaoServiceImpTest {
                 TipoNotificacaoEnum.CONEXAO_SOLICITADA,
                 conexaoId,
                 "Título",
-                "Texto"
+                "Texto",
+                null
         );
 
         assertThat(result.getStatusEnvio()).isEqualTo(StatusEnvioNotificacaoEnum.SKIPPED);
-        verify(expoPushClient, never()).enviar(any(), any(), any(), any(), any());
+        verify(expoPushClient, never()).enviar(any(), any(), any(), any(), any(), any());
         verify(dispositivoPushRepository, never()).findByUsuario_IdAndAtivoTrue(any());
     }
 
@@ -125,11 +127,12 @@ class NotificacaoServiceImpTest {
                 TipoNotificacaoEnum.CONEXAO_SOLICITADA,
                 conexaoId,
                 "Título",
-                "Texto"
+                "Texto",
+                null
         );
 
         assertThat(result.getStatusEnvio()).isEqualTo(StatusEnvioNotificacaoEnum.SKIPPED);
-        verify(expoPushClient, never()).enviar(any(), any(), any(), any(), any());
+        verify(expoPushClient, never()).enviar(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -143,11 +146,12 @@ class NotificacaoServiceImpTest {
                 TipoNotificacaoEnum.CONEXAO_SOLICITADA,
                 conexaoId,
                 "Título",
-                "Texto"
+                "Texto",
+                null
         );
 
         assertThat(result.getStatusEnvio()).isEqualTo(StatusEnvioNotificacaoEnum.SKIPPED);
-        verify(expoPushClient, never()).enviar(any(), any(), any(), any(), any());
+        verify(expoPushClient, never()).enviar(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -156,7 +160,7 @@ class NotificacaoServiceImpTest {
         DispositivoPushEntity device = dispositivo("ExponentPushToken[ok]");
         when(dispositivoPushRepository.findByUsuario_IdAndAtivoTrue(destinatarioId))
                 .thenReturn(List.of(device));
-        when(expoPushClient.enviar(eq(device.getExpoPushToken()), any(), any(), any(), eq(conexaoId)))
+        when(expoPushClient.enviar(eq(device.getExpoPushToken()), any(), any(), any(), eq(conexaoId), any()))
                 .thenReturn(new ExpoPushSendResult.Success());
 
         NotificacaoEntity result = service.criarETentarEnviar(
@@ -165,12 +169,21 @@ class NotificacaoServiceImpTest {
                 TipoNotificacaoEnum.CONEXAO_SOLICITADA,
                 conexaoId,
                 "Título",
-                "Texto"
+                "Texto",
+                null
         );
 
         assertThat(result.getStatusEnvio()).isEqualTo(StatusEnvioNotificacaoEnum.ENVIADA);
         assertThat(result.getEnviadoEm()).isNotNull();
         assertThat(result.getErroEnvio()).isNull();
+        verify(expoPushClient).enviar(
+                eq(device.getExpoPushToken()),
+                any(),
+                any(),
+                any(),
+                eq(conexaoId),
+                eq(null)
+        );
     }
 
     @Test
@@ -179,7 +192,7 @@ class NotificacaoServiceImpTest {
         DispositivoPushEntity device = dispositivo("ExponentPushToken[err]");
         when(dispositivoPushRepository.findByUsuario_IdAndAtivoTrue(destinatarioId))
                 .thenReturn(List.of(device));
-        when(expoPushClient.enviar(any(), any(), any(), any(), any()))
+        when(expoPushClient.enviar(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new ExpoPushSendResult.Error("timeout"));
 
         NotificacaoEntity result = service.criarETentarEnviar(
@@ -188,7 +201,8 @@ class NotificacaoServiceImpTest {
                 TipoNotificacaoEnum.CONEXAO_ACEITA,
                 conexaoId,
                 "Título",
-                "Texto"
+                "Texto",
+                null
         );
 
         assertThat(result.getStatusEnvio()).isEqualTo(StatusEnvioNotificacaoEnum.ERROR);
@@ -202,7 +216,7 @@ class NotificacaoServiceImpTest {
         DispositivoPushEntity device = dispositivo("ExponentPushToken[invalid]");
         when(dispositivoPushRepository.findByUsuario_IdAndAtivoTrue(destinatarioId))
                 .thenReturn(List.of(device));
-        when(expoPushClient.enviar(any(), any(), any(), any(), any()))
+        when(expoPushClient.enviar(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new ExpoPushSendResult.DeviceNotRegistered());
         when(dispositivoPushRepository.save(any(DispositivoPushEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -212,13 +226,43 @@ class NotificacaoServiceImpTest {
                 TipoNotificacaoEnum.CONEXAO_SOLICITADA,
                 conexaoId,
                 "Título",
-                "Texto"
+                "Texto",
+                null
         );
 
         assertThat(result.getStatusEnvio()).isEqualTo(StatusEnvioNotificacaoEnum.ERROR);
         ArgumentCaptor<DispositivoPushEntity> captor = ArgumentCaptor.forClass(DispositivoPushEntity.class);
         verify(dispositivoPushRepository).save(captor.capture());
         assertThat(captor.getValue().getAtivo()).isFalse();
+    }
+
+    @Test
+    @DisplayName("encaminha urgência emergência para o cliente Expo")
+    void shouldForwardEmergencyUrgencyToExpo() {
+        DispositivoPushEntity device = dispositivo("ExponentPushToken[ok]");
+        when(dispositivoPushRepository.findByUsuario_IdAndAtivoTrue(destinatarioId))
+                .thenReturn(List.of(device));
+        when(expoPushClient.enviar(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new ExpoPushSendResult.Success());
+
+        service.criarETentarEnviar(
+                destinatarioId,
+                remetenteId,
+                TipoNotificacaoEnum.CONEXAO_SOLICITADA,
+                conexaoId,
+                "Título",
+                "Texto",
+                UrgenciaSolicitacaoEnum.EMERGENCIA
+        );
+
+        verify(expoPushClient).enviar(
+                eq(device.getExpoPushToken()),
+                any(),
+                any(),
+                any(),
+                eq(conexaoId),
+                eq(UrgenciaSolicitacaoEnum.EMERGENCIA)
+        );
     }
 
     private DispositivoPushEntity dispositivo(String token) {

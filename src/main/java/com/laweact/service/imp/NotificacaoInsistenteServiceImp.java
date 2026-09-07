@@ -103,7 +103,7 @@ public class NotificacaoInsistenteServiceImp implements NotificacaoInsistenteSer
         String texto = montarTextoLembrete(nomeCliente, tituloSolicitacao, urgencia);
 
         if (existente.isPresent()) {
-            notificacaoService.reinsistirEnvio(existente.get(), titulo, texto);
+            notificacaoService.reinsistirEnvio(existente.get(), titulo, texto, urgencia);
         } else {
             notificacaoService.criarETentarEnviar(
                     conexao.getAdvogado().getUsuarioId(),
@@ -111,7 +111,8 @@ public class NotificacaoInsistenteServiceImp implements NotificacaoInsistenteSer
                     TipoNotificacaoEnum.CONEXAO_SOLICITADA,
                     conexao.getId(),
                     titulo,
-                    texto
+                    texto,
+                    urgencia
             );
         }
 

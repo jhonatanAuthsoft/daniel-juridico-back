@@ -51,4 +51,6 @@ public interface SolicitacaoRepository extends JpaRepository<SolicitacaoEntity, 
             GROUP BY s.status
             """)
     List<Object[]> countGroupedByStatusForCliente(@Param("usuarioId") UUID usuarioId);
+
+    List<SolicitacaoEntity> findByCliente_UsuarioId(UUID usuarioId);
 }

@@ -12,23 +12,36 @@ import com.laweact.model.entity.SolicitacaoMatchEntity;
 
 public interface SolicitacaoMatchRepository extends JpaRepository<SolicitacaoMatchEntity, UUID> {
 
-    long countBySolicitacao_Id(UUID solicitacaoId);
-
     boolean existsBySolicitacao_IdAndAdvogado_UsuarioId(UUID solicitacaoId, UUID advogadoId);
 
     @Query("""
             SELECT m.solicitacao.id, COUNT(m)
             FROM SolicitacaoMatchEntity m
+            JOIN m.advogado a
+            JOIN a.usuario u
             WHERE m.solicitacao.id IN :solicitacaoIds
+              AND u.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
             GROUP BY m.solicitacao.id
             """)
     List<Object[]> countGroupedBySolicitacaoIds(@Param("solicitacaoIds") Collection<UUID> solicitacaoIds);
 
     @Query("""
             select m from SolicitacaoMatchEntity m
-            join fetch m.advogado
+            join fetch m.advogado a
+            join fetch a.usuario u
             where m.solicitacao.id = :solicitacaoId
+              and u.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
             order by m.posicao asc
             """)
     List<SolicitacaoMatchEntity> findRankingBySolicitacaoId(@Param("solicitacaoId") UUID solicitacaoId);
+
+    @Query("""
+            SELECT COUNT(m)
+            FROM SolicitacaoMatchEntity m
+            JOIN m.advogado a
+            JOIN a.usuario u
+            WHERE m.solicitacao.id = :solicitacaoId
+              AND u.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
+            """)
+    long countBySolicitacao_Id(@Param("solicitacaoId") UUID solicitacaoId);
 }

@@ -40,6 +40,7 @@ public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
                     join fetch cl.usuario
                     join fetch c.solicitacao s
                     where c.cliente.usuarioId = :clienteId
+                      and a.usuario.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
                       and c.status in :statuses
                       and (:urgencia is null or s.urgencia = :urgencia)
                       and (
@@ -54,8 +55,10 @@ public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
             countQuery = """
                     select count(c) from ConexaoEntity c
                     join c.advogado a
+                    join a.usuario
                     join c.solicitacao s
                     where c.cliente.usuarioId = :clienteId
+                      and a.usuario.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
                       and c.status in :statuses
                       and (:urgencia is null or s.urgencia = :urgencia)
                       and (
@@ -92,6 +95,7 @@ public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
                     join fetch cl.usuario
                     join fetch c.solicitacao s
                     where c.advogado.usuarioId = :advogadoId
+                      and cl.usuario.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
                       and c.status in :statuses
                       and (:urgencia is null or s.urgencia = :urgencia)
                       and (
@@ -113,8 +117,10 @@ public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
             countQuery = """
                     select count(c) from ConexaoEntity c
                     join c.cliente cl
+                    join cl.usuario
                     join c.solicitacao s
                     where c.advogado.usuarioId = :advogadoId
+                      and cl.usuario.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
                       and c.status in :statuses
                       and (:urgencia is null or s.urgencia = :urgencia)
                       and (
@@ -139,7 +145,10 @@ public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
             select s.urgencia, count(c)
             from ConexaoEntity c
             join c.solicitacao s
+            join c.cliente cl
+            join cl.usuario
             where c.advogado.usuarioId = :advogadoId
+              and cl.usuario.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
               and c.status in :statuses
             group by s.urgencia
             """)
@@ -153,7 +162,10 @@ public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
             select s.urgencia, count(c)
             from ConexaoEntity c
             join c.solicitacao s
+            join c.advogado a
+            join a.usuario
             where c.cliente.usuarioId = :clienteId
+              and a.usuario.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
               and c.status in :statuses
             group by s.urgencia
             """)
@@ -166,7 +178,10 @@ public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
     @Query("""
             select c.status, count(c)
             from ConexaoEntity c
+            join c.cliente cl
+            join cl.usuario
             where c.advogado.usuarioId = :advogadoId
+              and cl.usuario.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
             group by c.status
             """)
     List<Object[]> countGroupedByStatusForAdvogado(@Param("advogadoId") UUID advogadoId);
@@ -175,10 +190,15 @@ public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
     @Query("""
             select c.status, count(c)
             from ConexaoEntity c
+            join c.advogado a
+            join a.usuario
             where c.cliente.usuarioId = :clienteId
+              and a.usuario.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
             group by c.status
             """)
     List<Object[]> countGroupedByStatusForCliente(@Param("clienteId") UUID clienteId);
+
+    List<ConexaoEntity> findByCliente_UsuarioIdOrAdvogado_UsuarioId(UUID clienteId, UUID advogadoId);
 
     @Query("""
             select c from ConexaoEntity c
@@ -188,6 +208,7 @@ public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
             join fetch cl.usuario
             join fetch c.solicitacao
             where c.solicitacao.id = :solicitacaoId
+              and a.usuario.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
             order by c.createdAt desc
             """)
     List<ConexaoEntity> findBySolicitacaoId(@Param("solicitacaoId") UUID solicitacaoId);
@@ -224,6 +245,8 @@ public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
             join fetch cl.usuario
             join fetch c.solicitacao s
             where c.status = :status
+              and a.usuario.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
+              and cl.usuario.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
               and s.urgencia in :urgencias
               and c.visualizadaEm is null
               and (

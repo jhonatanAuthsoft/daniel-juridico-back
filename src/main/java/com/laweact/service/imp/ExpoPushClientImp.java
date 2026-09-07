@@ -12,7 +12,9 @@ import org.springframework.web.client.RestClientException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.laweact.model.enums.ReferenciaNotificacaoEnum;
 import com.laweact.model.enums.TipoNotificacaoEnum;
+import com.laweact.model.enums.UrgenciaSolicitacaoEnum;
 import com.laweact.service.ExpoPushClient;
+import com.laweact.service.ExpoPushPriority;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +32,8 @@ public class ExpoPushClientImp implements ExpoPushClient {
             String titulo,
             String texto,
             TipoNotificacaoEnum tipo,
-            UUID referenciaId
+            UUID referenciaId,
+            UrgenciaSolicitacaoEnum urgencia
     ) {
         ExpoPushPayload payload = new ExpoPushPayload(
                 expoPushToken,
@@ -40,7 +43,10 @@ public class ExpoPushClientImp implements ExpoPushClient {
                         "tipo", tipo.name(),
                         "referenciaTipo", ReferenciaNotificacaoEnum.CONEXAO.name(),
                         "referenciaId", referenciaId.toString()
-                )
+                ),
+                ExpoPushPriority.priority(urgencia),
+                ExpoPushPriority.channelId(urgencia),
+                ExpoPushPriority.interruptionLevel(urgencia)
         );
 
         try {

@@ -39,6 +39,7 @@ public class DatabaseCleaner {
                   termos_aceite,
                   tokens_recuperacao_senha,
                   auditoria_eventos,
+                  logs_acesso_tela,
                   tokens_revogados,
                   sessoes,
                   usuarios

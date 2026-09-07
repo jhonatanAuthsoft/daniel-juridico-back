@@ -20,13 +20,19 @@ import com.laweact.dto.usuario.UsuarioResponseDTO;
 import com.laweact.mapper.UsuarioMapper;
 import com.laweact.model.entity.AdvogadoEntity;
 import com.laweact.model.entity.ClienteEntity;
+import com.laweact.model.entity.ConexaoEntity;
 import com.laweact.model.entity.SessaoEntity;
+import com.laweact.model.entity.SolicitacaoEntity;
 import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.model.enums.ArquivoFinalidade;
 import com.laweact.model.enums.PerfilUsuarioEnum;
+import com.laweact.model.enums.StatusConexaoEnum;
+import com.laweact.model.enums.StatusSolicitacaoEnum;
 import com.laweact.model.enums.StatusUsuarioEnum;
 import com.laweact.repository.AdvogadoRepository;
 import com.laweact.repository.ClienteRepository;
+import com.laweact.repository.ConexaoRepository;
+import com.laweact.repository.SolicitacaoRepository;
 import com.laweact.repository.UsuarioRepository;
 import com.laweact.service.ArquivoService;
 import com.laweact.service.AssinaturaService;
@@ -47,6 +53,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -69,6 +76,8 @@ public class UsuarioServiceImp implements UsuarioService {
     private final ArquivoService arquivoService;
     private final PasswordEncoder passwordEncoder;
     private final AssinaturaService assinaturaService;
+    private final ConexaoRepository conexaoRepository;
+    private final SolicitacaoRepository solicitacaoRepository;
 
     @Override
     @Transactional
@@ -275,6 +284,7 @@ public class UsuarioServiceImp implements UsuarioService {
 
         usuario.setSenha(passwordEncoder.encode(input.novaSenha()));
         usuarioRepository.save(usuario);
+        sessaoService.encerrarTodasDoUsuario(usuario.getId());
 
         return AtualizarSenhaResponseDTO.builder()
                 .mensagem("Senha alterada com sucesso")
@@ -317,7 +327,35 @@ public class UsuarioServiceImp implements UsuarioService {
                 .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
 
         sessaoService.encerrarTodasDoUsuario(usuario.getId());
-        usuarioRepository.delete(usuario);
+        ocultarConteudosDoUsuario(usuario);
+        usuario.setStatus(StatusUsuarioEnum.EXCLUIDO);
+        usuario.setExcluidoEm(LocalDateTime.now());
+        usuarioRepository.save(usuario);
+    }
+
+    private void ocultarConteudosDoUsuario(UsuarioEntity usuario) {
+        LocalDateTime agora = LocalDateTime.now();
+        List<ConexaoEntity> conexoes = conexaoRepository
+                .findByCliente_UsuarioIdOrAdvogado_UsuarioId(usuario.getId(), usuario.getId());
+        for (ConexaoEntity conexao : conexoes) {
+            if (conexao.getStatus() == StatusConexaoEnum.PENDENTE) {
+                conexao.setStatus(StatusConexaoEnum.CANCELADA);
+                conexao.setCanceladoEm(agora);
+            }
+        }
+        conexaoRepository.saveAll(conexoes);
+
+        if (usuario.getPerfil() != PerfilUsuarioEnum.CLIENTE) {
+            return;
+        }
+
+        List<SolicitacaoEntity> solicitacoes = solicitacaoRepository.findByCliente_UsuarioId(usuario.getId());
+        for (SolicitacaoEntity solicitacao : solicitacoes) {
+            if (solicitacao.getStatus() == StatusSolicitacaoEnum.AGUARDANDO_MATCHING) {
+                solicitacao.setStatus(StatusSolicitacaoEnum.CANCELADA);
+            }
+        }
+        solicitacaoRepository.saveAll(solicitacoes);
     }
 
     @Override

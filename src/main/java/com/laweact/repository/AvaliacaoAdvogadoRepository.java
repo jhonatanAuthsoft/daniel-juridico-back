@@ -17,13 +17,19 @@ public interface AvaliacaoAdvogadoRepository extends JpaRepository<AvaliacaoAdvo
     @Query(
             value = """
                     SELECT a FROM AvaliacaoAdvogadoEntity a
+                    JOIN a.cliente cl
+                    JOIN cl.usuario u
                     WHERE a.advogado.usuarioId = :advogadoId
+                      AND u.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
                     ORDER BY CASE WHEN a.cliente.usuarioId = :usuarioId THEN 0 ELSE 1 END,
                              a.createdAt DESC
                     """,
             countQuery = """
                     SELECT COUNT(a) FROM AvaliacaoAdvogadoEntity a
+                    JOIN a.cliente cl
+                    JOIN cl.usuario u
                     WHERE a.advogado.usuarioId = :advogadoId
+                      AND u.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
                     """
     )
     Page<AvaliacaoAdvogadoEntity> findByAdvogadoOrderedWithOwnFirst(
@@ -32,7 +38,15 @@ public interface AvaliacaoAdvogadoRepository extends JpaRepository<AvaliacaoAdvo
             Pageable pageable
     );
 
-    long countByAdvogado_UsuarioId(UUID advogadoId);
+    @Query("""
+            SELECT COUNT(a)
+            FROM AvaliacaoAdvogadoEntity a
+            JOIN a.cliente cl
+            JOIN cl.usuario u
+            WHERE a.advogado.usuarioId = :advogadoId
+              AND u.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
+            """)
+    long countByAdvogado_UsuarioId(@Param("advogadoId") UUID advogadoId);
 
     boolean existsByAdvogado_UsuarioIdAndCliente_UsuarioId(UUID advogadoId, UUID clienteId);
 
@@ -48,7 +62,10 @@ public interface AvaliacaoAdvogadoRepository extends JpaRepository<AvaliacaoAdvo
     @Query("""
             SELECT COALESCE(AVG(a.nota), 0)
             FROM AvaliacaoAdvogadoEntity a
+            JOIN a.cliente cl
+            JOIN cl.usuario u
             WHERE a.advogado.usuarioId = :advogadoId
+              AND u.status = com.laweact.model.enums.StatusUsuarioEnum.ATIVO
             """)
     BigDecimal mediaByAdvogadoId(@Param("advogadoId") UUID advogadoId);
 }

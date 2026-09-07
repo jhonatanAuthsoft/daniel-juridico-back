@@ -26,9 +26,11 @@ import com.laweact.dto.usuario.AtualizarSenhaInputDTO;
 import com.laweact.dto.usuario.AtualizarSenhaResponseDTO;
 import com.laweact.dto.usuario.EmailDisponivelResponseDTO;
 import com.laweact.dto.usuario.FotoPerfilResponseDTO;
+import com.laweact.dto.usuario.LogAcessoTelaResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
 import com.laweact.dto.usuario.MeResponseDTO;
+import com.laweact.dto.usuario.RegistrarAcessoTelaInputDTO;
 import com.laweact.dto.usuario.PreferenciasResponseDTO;
 import com.laweact.dto.usuario.RedefinirSenhaInputDTO;
 import com.laweact.dto.usuario.RedefinirSenhaResponseDTO;
@@ -41,6 +43,7 @@ import com.laweact.dto.usuario.ValidarCodigoRecuperacaoInputDTO;
 import com.laweact.dto.usuario.ValidarCodigoRecuperacaoResponseDTO;
 import com.laweact.model.enums.PerfilUsuarioEnum;
 import com.laweact.model.enums.StatusUsuarioEnum;
+import com.laweact.service.LogAcessoTelaService;
 import com.laweact.service.RecuperacaoSenhaService;
 import com.laweact.service.TermosAceiteService;
 import com.laweact.service.UsuarioService;
@@ -61,6 +64,7 @@ public class UsuarioController {
     private final UsuarioService usuarioService;
     private final TermosAceiteService termosAceiteService;
     private final RecuperacaoSenhaService recuperacaoSenhaService;
+    private final LogAcessoTelaService logAcessoTelaService;
 
     @PostMapping("/login")
     @Operation(summary = "Login", description = "Autentica o usuário e retorna access token (1h) + refresh token (7d)")
@@ -189,10 +193,23 @@ public class UsuarioController {
         return ResponseEntity.ok(ApiResponse.success(response, "Foto de perfil atualizada com sucesso"));
     }
 
+    @PostMapping("/me/acessos-tela")
+    @Operation(
+            summary = "Registrar acesso a tela",
+            description = "Grava um log de abertura de tela (ex.: termos) para o usuário autenticado"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<LogAcessoTelaResponseDTO>> registrarAcessoTela(
+            @Valid @RequestBody RegistrarAcessoTelaInputDTO input
+    ) {
+        LogAcessoTelaResponseDTO response = logAcessoTelaService.registrar(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Acesso registrado com sucesso"));
+    }
+
     @PatchMapping("/me/senha")
     @Operation(
             summary = "Atualizar senha",
-            description = "Altera a senha do usuário autenticado informando a senha atual e a nova senha"
+            description = "Altera a senha do usuário autenticado, invalida as sessões ativas e exige novo login"
     )
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiResponse<AtualizarSenhaResponseDTO>> atualizarSenha(
@@ -205,7 +222,7 @@ public class UsuarioController {
     @DeleteMapping("/me")
     @Operation(
             summary = "Excluir conta",
-            description = "Remove permanentemente a conta do usuário autenticado e encerra todas as sessões"
+            description = "Marca a conta do usuário autenticado como excluída (soft delete), oculta os conteúdos e encerra todas as sessões"
     )
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiResponse<Void>> excluirConta() {

@@ -309,6 +309,34 @@ class AdvogadoEditarPerfilServiceTest {
     }
 
     @Test
+    @DisplayName("recalcula atuacaoDesde pela OAB mais antiga ao editar documentação")
+    void shouldUpdateAtuacaoDesdeFromOldestOab() {
+        stubAuthenticatedAdvogado();
+        stubDetalhe();
+        when(oabRepository.existsByNumeroAndUfAndAdvogadoUsuarioIdNot("123456", "SP", usuarioId))
+                .thenReturn(false);
+        when(oabRepository.existsByNumeroAndUfAndAdvogadoUsuarioIdNot("654321", "RJ", usuarioId))
+                .thenReturn(false);
+        when(oabRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.atualizarDocumentacao(AtualizarDocumentacaoAdvogadoInputDTO.builder()
+                .oabPrincipal(OabInputDTO.builder()
+                        .numero("123456")
+                        .uf("SP")
+                        .dataExpedicao(LocalDate.of(2018, 1, 10))
+                        .build())
+                .oabsSuplementares(List.of(OabInputDTO.builder()
+                        .numero("654321")
+                        .uf("RJ")
+                        .dataExpedicao(LocalDate.of(2016, 3, 15))
+                        .build()))
+                .build());
+
+        assertThat(advogado.getAtuacaoDesde()).isEqualTo(LocalDate.of(2016, 3, 15));
+        verify(advogadoRepository).save(advogado);
+    }
+
+    @Test
     @DisplayName("atualiza disponibilidade do perfil")
     void shouldUpdateAvailability() {
         stubAuthenticatedAdvogado();

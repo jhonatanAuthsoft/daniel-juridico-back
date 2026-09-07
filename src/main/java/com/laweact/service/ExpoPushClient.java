@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.laweact.model.enums.TipoNotificacaoEnum;
+import com.laweact.model.enums.UrgenciaSolicitacaoEnum;
 
 public interface ExpoPushClient {
 
@@ -12,7 +13,8 @@ public interface ExpoPushClient {
             String titulo,
             String texto,
             TipoNotificacaoEnum tipo,
-            UUID referenciaId
+            UUID referenciaId,
+            UrgenciaSolicitacaoEnum urgencia
     );
 
     sealed interface ExpoPushSendResult {
@@ -27,6 +29,9 @@ public interface ExpoPushClient {
             String to,
             String title,
             String body,
-            Map<String, Object> data
+            Map<String, Object> data,
+            String priority,
+            String channelId,
+            String interruptionLevel
     ) {}
 }

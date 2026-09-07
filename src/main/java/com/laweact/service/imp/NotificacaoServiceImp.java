@@ -23,6 +23,7 @@ import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.model.enums.ReferenciaNotificacaoEnum;
 import com.laweact.model.enums.StatusEnvioNotificacaoEnum;
 import com.laweact.model.enums.TipoNotificacaoEnum;
+import com.laweact.model.enums.UrgenciaSolicitacaoEnum;
 import com.laweact.repository.DispositivoPushRepository;
 import com.laweact.repository.NotificacaoRepository;
 import com.laweact.repository.UsuarioRepository;
@@ -97,7 +98,8 @@ public class NotificacaoServiceImp implements NotificacaoService {
             TipoNotificacaoEnum tipo,
             UUID conexaoId,
             String titulo,
-            String texto
+            String texto,
+            UrgenciaSolicitacaoEnum urgencia
     ) {
         UsuarioEntity destinatario = usuarioRepository.findById(destinatarioId)
                 .orElseThrow(() -> new CustomError("Destinatário não encontrado", HttpStatus.NOT_FOUND));
@@ -122,7 +124,7 @@ public class NotificacaoServiceImp implements NotificacaoService {
                 conexaoId
         );
 
-        return tentarEnviarPush(notificacao);
+        return tentarEnviarPush(notificacao, urgencia);
     }
 
     @Override
@@ -130,7 +132,8 @@ public class NotificacaoServiceImp implements NotificacaoService {
     public NotificacaoEntity reinsistirEnvio(
             NotificacaoEntity notificacao,
             String titulo,
-            String texto
+            String texto,
+            UrgenciaSolicitacaoEnum urgencia
     ) {
         notificacao.setLidaEm(null);
         notificacao.setTitulo(titulo);
@@ -138,10 +141,13 @@ public class NotificacaoServiceImp implements NotificacaoService {
         notificacao.setStatusEnvio(StatusEnvioNotificacaoEnum.PENDENTE);
         notificacao.setErroEnvio(null);
         notificacao = notificacaoRepository.save(notificacao);
-        return tentarEnviarPush(notificacao);
+        return tentarEnviarPush(notificacao, urgencia);
     }
 
-    private NotificacaoEntity tentarEnviarPush(NotificacaoEntity notificacao) {
+    private NotificacaoEntity tentarEnviarPush(
+            NotificacaoEntity notificacao,
+            UrgenciaSolicitacaoEnum urgencia
+    ) {
         UsuarioEntity destinatario = notificacao.getDestinatario();
         UUID destinatarioId = destinatario.getId();
         String titulo = notificacao.getTitulo();
@@ -172,7 +178,8 @@ public class NotificacaoServiceImp implements NotificacaoService {
                     titulo,
                     texto,
                     tipo,
-                    conexaoId
+                    conexaoId,
+                    urgencia
             );
 
             switch (resultado) {

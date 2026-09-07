@@ -7,6 +7,7 @@ import com.laweact.dto.notificacao.NaoLidasExisteResponseDTO;
 import com.laweact.dto.notificacao.NotificacaoResponseDTO;
 import com.laweact.model.entity.NotificacaoEntity;
 import com.laweact.model.enums.TipoNotificacaoEnum;
+import com.laweact.model.enums.UrgenciaSolicitacaoEnum;
 
 public interface NotificacaoService {
 
@@ -24,11 +25,17 @@ public interface NotificacaoService {
             TipoNotificacaoEnum tipo,
             UUID conexaoId,
             String titulo,
-            String texto
+            String texto,
+            UrgenciaSolicitacaoEnum urgencia
     );
 
     /**
      * Reuses an existing inbox row: clears read state, updates copy, retries Expo Push.
      */
-    NotificacaoEntity reinsistirEnvio(NotificacaoEntity notificacao, String titulo, String texto);
+    NotificacaoEntity reinsistirEnvio(
+            NotificacaoEntity notificacao,
+            String titulo,
+            String texto,
+            UrgenciaSolicitacaoEnum urgencia
+    );
 }

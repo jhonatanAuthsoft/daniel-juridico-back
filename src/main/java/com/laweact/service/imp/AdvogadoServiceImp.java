@@ -2,6 +2,7 @@ package com.laweact.service.imp;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -169,7 +170,7 @@ public class AdvogadoServiceImp implements AdvogadoService {
                 .universidade(input.universidade().trim())
                 .curso(input.curso().trim())
                 .anoFormacao(input.anoFormacao())
-                .atuacaoDesde(input.atuacaoDesde())
+                .atuacaoDesde(dataExpedicaoMaisAntiga(oabPrincipal, input.oabsSuplementares()))
                 .biografia(blankToNull(input.biografia()))
                 .disponibilidade(DisponibilidadeAdvogadoEnum.DISPONIVEL)
                 .statusVerificacao(StatusVerificacaoEnum.PENDENTE)
@@ -339,6 +340,8 @@ public class AdvogadoServiceImp implements AdvogadoService {
                 salvarOab(advogado, suplementar, false);
             }
         }
+        advogado.setAtuacaoDesde(dataExpedicaoMaisAntiga(input.oabPrincipal(), input.oabsSuplementares()));
+        advogadoRepository.save(advogado);
         return carregarDetalhe(usuario.getId());
     }
 
@@ -369,6 +372,10 @@ public class AdvogadoServiceImp implements AdvogadoService {
 
         AdvogadoEntity advogado = advogadoRepository.findByUsuarioId(advogadoId)
                 .orElseThrow(() -> new CustomError("Perfil de advogado não encontrado", HttpStatus.NOT_FOUND));
+        if (advogado.getUsuario() == null
+                || advogado.getUsuario().getStatus() != StatusUsuarioEnum.ATIVO) {
+            throw new CustomError("Perfil de advogado não encontrado", HttpStatus.NOT_FOUND);
+        }
         EnderecoEntity endereco = enderecoRepository.findByUsuario_Id(advogadoId).orElse(null);
 
         return advogadoMapper.toPerfilPublicoResponse(
@@ -865,6 +872,22 @@ public class AdvogadoServiceImp implements AdvogadoService {
             salvas.add(posGraduacaoAdvogadoRepository.save(entity));
         }
         return salvas;
+    }
+
+    private LocalDate dataExpedicaoMaisAntiga(OabInputDTO principal, List<OabInputDTO> suplementares) {
+        LocalDate oldest = principal.dataExpedicao();
+        if (suplementares == null) {
+            return oldest;
+        }
+        for (OabInputDTO suplementar : suplementares) {
+            if (suplementar == null || suplementar.dataExpedicao() == null) {
+                continue;
+            }
+            if (oldest == null || suplementar.dataExpedicao().isBefore(oldest)) {
+                oldest = suplementar.dataExpedicao();
+            }
+        }
+        return oldest;
     }
 
     private OabEntity salvarOab(AdvogadoEntity advogado, OabInputDTO input, boolean principal) {

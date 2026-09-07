@@ -61,6 +61,9 @@ public class UsuarioEntity extends BaseEntity implements UserDetails, Serializab
     @Column(name = "bloqueado_ate")
     private LocalDateTime bloqueadoAte;
 
+    @Column(name = "excluido_em")
+    private LocalDateTime excluidoEm;
+
     @Builder.Default
     @Column(name = "notificacoes_push_habilitadas", nullable = false)
     private Boolean notificacoesPushHabilitadas = true;

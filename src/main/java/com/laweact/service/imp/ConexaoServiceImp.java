@@ -357,7 +357,8 @@ public class ConexaoServiceImp implements ConexaoService {
                     conexao.getCliente().getNomeCompleto()
                             + " solicitou conexão sobre \""
                             + tituloSolicitacao
-                            + "\""
+                            + "\"",
+                    conexao.getSolicitacao().getUrgencia()
             );
         } catch (Exception ex) {
             log.error(
@@ -380,7 +381,8 @@ public class ConexaoServiceImp implements ConexaoService {
                     conexao.getAdvogado().getNomeCompleto()
                             + " aceitou sua solicitação \""
                             + tituloSolicitacao
-                            + "\""
+                            + "\"",
+                    conexao.getSolicitacao().getUrgencia()
             );
         } catch (Exception ex) {
             log.error(

@@ -86,7 +86,7 @@ class NotificacaoInsistenteServiceImpTest {
                 conexaoId,
                 TipoNotificacaoEnum.CONEXAO_SOLICITADA
         )).thenReturn(Optional.of(existente));
-        when(notificacaoService.reinsistirEnvio(any(), any(), any())).thenReturn(existente);
+        when(notificacaoService.reinsistirEnvio(any(), any(), any(), any())).thenReturn(existente);
         when(conexaoRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         NotificacaoInsistenteJobResultDTO result = service.processar();
@@ -100,7 +100,8 @@ class NotificacaoInsistenteServiceImpTest {
         verify(notificacaoService).reinsistirEnvio(
                 eq(existente),
                 tituloCaptor.capture(),
-                textoCaptor.capture()
+                textoCaptor.capture(),
+                eq(UrgenciaSolicitacaoEnum.EMERGENCIA)
         );
         assertThat(tituloCaptor.getValue()).startsWith("Lembrete:");
         assertThat(textoCaptor.getValue()).contains("emergência");
@@ -156,7 +157,7 @@ class NotificacaoInsistenteServiceImpTest {
         assertThat(result.avaliadas()).isEqualTo(1);
         assertThat(result.reenviadas()).isEqualTo(0);
         assertThat(result.ignoradas()).isEqualTo(1);
-        verify(notificacaoService, never()).reinsistirEnvio(any(), any(), any());
+        verify(notificacaoService, never()).reinsistirEnvio(any(), any(), any(), any());
         verify(conexaoRepository, never()).save(any());
     }
 
@@ -177,7 +178,7 @@ class NotificacaoInsistenteServiceImpTest {
 
         assertThat(result.reenviadas()).isEqualTo(0);
         assertThat(result.ignoradas()).isEqualTo(1);
-        verify(notificacaoService, never()).reinsistirEnvio(any(), any(), any());
+        verify(notificacaoService, never()).reinsistirEnvio(any(), any(), any(), any());
     }
 
     private ConexaoEntity conexaoPendente(UUID conexaoId) {

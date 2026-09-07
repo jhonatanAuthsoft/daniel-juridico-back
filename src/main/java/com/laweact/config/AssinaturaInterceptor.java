@@ -1,6 +1,7 @@
 package com.laweact.config;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 
@@ -24,9 +25,11 @@ import com.laweact.service.AssinaturaAcessoService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 
 @Component
 @RequiredArgsConstructor
+@Log4j2
 public class AssinaturaInterceptor implements HandlerInterceptor {
 
     private static final Set<String> ALLOWLIST_PREFIXES = Set.of(
@@ -74,7 +77,9 @@ public class AssinaturaInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        log.info("Acesso bloqueado por assinatura: path={} user={}", path, userDetails.getUsername());
         response.setStatus(HttpStatus.FORBIDDEN.value());
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         ApiResponse<Void> body = ApiResponse.error(
                 List.of(ApiError.builder()

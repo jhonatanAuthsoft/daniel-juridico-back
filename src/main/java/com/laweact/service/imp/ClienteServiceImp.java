@@ -49,7 +49,7 @@ public class ClienteServiceImp implements ClienteService {
         validarCamposPorTipoDocumento(input);
 
         String email = input.email().toLowerCase().trim();
-        String documento = normalizarDocumento(input.numeroDocumento());
+        String documento = normalizarDocumento(input.tipoDocumento(), input.numeroDocumento());
         validarDocumento(input.tipoDocumento(), documento);
 
         if (usuarioRepository.findByEmail(email).isPresent()) {
@@ -277,11 +277,17 @@ public class ClienteServiceImp implements ClienteService {
             throw new CustomError("CPF deve conter 11 dígitos", HttpStatus.BAD_REQUEST);
         }
         if (tipo == TipoDocumentoEnum.CNPJ && documento.length() != 14) {
-            throw new CustomError("CNPJ deve conter 14 dígitos", HttpStatus.BAD_REQUEST);
+            throw new CustomError("CNPJ deve conter 14 caracteres", HttpStatus.BAD_REQUEST);
         }
     }
 
-    private String normalizarDocumento(String documento) {
+    private String normalizarDocumento(TipoDocumentoEnum tipo, String documento) {
+        if (documento == null) {
+            return "";
+        }
+        if (tipo == TipoDocumentoEnum.CNPJ) {
+            return documento.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+        }
         return documento.replaceAll("\\D", "");
     }
 

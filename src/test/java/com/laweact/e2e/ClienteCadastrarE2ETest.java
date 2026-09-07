@@ -101,6 +101,19 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
     }
 
     @Test
+    @DisplayName("deve criar cliente PJ com CNPJ alfanumérico")
+    void shouldCreateClienteWithAlphanumericCnpj() {
+        String email = "empresa.cnpj.alfa@laweact.com";
+        CadastrarClienteInputDTO input = Fixtures.clienteCnpjValido(email, "12.ABC.345/01DE-35");
+
+        ResponseEntity<JsonNode> response = api.post("/clientes/cadastrar", input);
+
+        assertSuccess(response, HttpStatus.CREATED);
+        JsonNode data = response.getBody().path("data");
+        assertThat(data.path("cliente").path("numeroDocumento").asText()).isEqualTo("12ABC34501DE35");
+    }
+
+    @Test
     @DisplayName("deve exigir razão social e área de atuação para CNPJ")
     void shouldFailCnpjWithoutRazaoSocial() {
         CadastrarClienteInputDTO input = CadastrarClienteInputDTO.builder()
@@ -207,7 +220,7 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
 
         ResponseEntity<JsonNode> response = api.post("/clientes/cadastrar", input);
 
-        assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "CNPJ deve conter 14 dígitos");
+        assertErrorDetailContains(response, HttpStatus.BAD_REQUEST, "CNPJ deve conter 14 caracteres");
         assertThat(usuarioRepository.count()).isZero();
     }
 

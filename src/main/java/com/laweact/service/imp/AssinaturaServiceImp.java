@@ -41,19 +41,16 @@ public class AssinaturaServiceImp implements AssinaturaService {
 
     @Override
     @Transactional
-    public AssinaturaEntity criarTrialParaAdvogado(UsuarioEntity usuario) {
+    public AssinaturaEntity criarAssinaturaPendenteParaAdvogado(UsuarioEntity usuario) {
         if (usuario.getPerfil() != PerfilUsuarioEnum.ADVOGADO) {
             return null;
         }
 
         return assinaturaRepository.findByUsuario_Id(usuario.getId())
                 .orElseGet(() -> {
-                    LocalDateTime agora = LocalDateTime.now();
                     AssinaturaEntity assinatura = AssinaturaEntity.builder()
                             .usuario(usuario)
-                            .status(StatusAssinaturaEnum.TRIAL)
-                            .trialInicioEm(agora)
-                            .trialFimEm(agora.plus(assinaturaProperties.getTrialDuration()))
+                            .status(StatusAssinaturaEnum.PENDENTE)
                             .autoRenovacao(false)
                             .build();
                     return assinaturaRepository.save(assinatura);
@@ -94,8 +91,11 @@ public class AssinaturaServiceImp implements AssinaturaService {
         AssinaturaStoreClient storeClient = resolverStoreClient(input.plataforma(), purchaseToken);
         AssinaturaStoreStateDTO storeState = storeClient.consultar(input.plataforma(), purchaseToken, productId);
 
+        // CANCELADA é aceita: quem cancelou dentro do período vigente (ex.: mês grátis) ainda
+        // tem direito de restaurar a compra e usar o app até o fim dele.
         if (storeState.status() != StatusAssinaturaEnum.ATIVA
-                && storeState.status() != StatusAssinaturaEnum.EM_ATRASO) {
+                && storeState.status() != StatusAssinaturaEnum.EM_ATRASO
+                && storeState.status() != StatusAssinaturaEnum.CANCELADA) {
             throw new CustomError("Assinatura não está ativa na loja", HttpStatus.BAD_REQUEST);
         }
 
@@ -146,22 +146,15 @@ public class AssinaturaServiceImp implements AssinaturaService {
     @Transactional
     public AssinaturaReconciliacaoJobResultDTO reconciliar() {
         LocalDateTime agora = LocalDateTime.now();
-        int trialsExpirados = 0;
         int assinaturasExpiradas = 0;
         int assinaturasSincronizadas = 0;
 
-        List<AssinaturaEntity> trialsVencidos = assinaturaRepository.findTrialsExpirados(
-                StatusAssinaturaEnum.TRIAL,
-                agora
-        );
-        for (AssinaturaEntity assinatura : trialsVencidos) {
-            assinatura.setStatus(StatusAssinaturaEnum.EXPIRADA);
-            assinaturaRepository.save(assinatura);
-            trialsExpirados++;
-        }
-
         List<AssinaturaEntity> periodoVencido = assinaturaRepository.findAssinaturasComPeriodoVencido(
-                List.of(StatusAssinaturaEnum.ATIVA, StatusAssinaturaEnum.EM_ATRASO),
+                List.of(
+                        StatusAssinaturaEnum.ATIVA,
+                        StatusAssinaturaEnum.EM_ATRASO,
+                        StatusAssinaturaEnum.CANCELADA
+                ),
                 agora.minus(assinaturaProperties.getGraceDuration())
         );
         for (AssinaturaEntity assinatura : periodoVencido) {
@@ -191,7 +184,6 @@ public class AssinaturaServiceImp implements AssinaturaService {
         }
 
         return AssinaturaReconciliacaoJobResultDTO.builder()
-                .trialsExpirados(trialsExpirados)
                 .assinaturasExpiradas(assinaturasExpiradas)
                 .assinaturasSincronizadas(assinaturasSincronizadas)
                 .build();
@@ -199,12 +191,11 @@ public class AssinaturaServiceImp implements AssinaturaService {
 
     @Override
     @Transactional
-    public void expirarTrial(UUID usuarioId) {
+    public void bloquearAssinatura(UUID usuarioId) {
         AssinaturaEntity assinatura = obterAssinaturaObrigatoria(usuarioId);
-        assinatura.setTrialFimEm(LocalDateTime.now().minusMinutes(1));
-        if (assinatura.getStatus() == StatusAssinaturaEnum.TRIAL) {
-            assinatura.setStatus(StatusAssinaturaEnum.EXPIRADA);
-        }
+        assinatura.setStatus(StatusAssinaturaEnum.PENDENTE);
+        assinatura.setPeriodoFimEm(null);
+        assinatura.setAutoRenovacao(false);
         assinaturaRepository.save(assinatura);
     }
 
@@ -231,15 +222,12 @@ public class AssinaturaServiceImp implements AssinaturaService {
     @Transactional
     public void resetAssinatura(UUID usuarioId) {
         AssinaturaEntity assinatura = obterAssinaturaObrigatoria(usuarioId);
-        LocalDateTime agora = LocalDateTime.now();
-        assinatura.setStatus(StatusAssinaturaEnum.TRIAL);
+        assinatura.setStatus(StatusAssinaturaEnum.PENDENTE);
         assinatura.setPlataforma(null);
         assinatura.setAmbiente(null);
         assinatura.setProductId(null);
         assinatura.setPurchaseToken(null);
         assinatura.setOriginalTransactionId(null);
-        assinatura.setTrialInicioEm(agora);
-        assinatura.setTrialFimEm(agora.plus(assinaturaProperties.getTrialDuration()));
         assinatura.setPeriodoFimEm(null);
         assinatura.setAutoRenovacao(false);
         assinatura.setUltimaSincronizacaoEm(null);

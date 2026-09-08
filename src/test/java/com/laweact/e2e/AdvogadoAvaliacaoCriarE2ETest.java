@@ -73,6 +73,7 @@ class AdvogadoAvaliacaoCriarE2ETest extends BaseE2ETest {
         );
         assertSuccess(login, HttpStatus.OK);
         api.authenticate(login.getBody().path("data").path("token").asText());
+        garantirAssinaturaSeAdvogado();
     }
 
     /** Returns lawyer id after creating solicitation + ACEITA connection. Client stays authenticated. */

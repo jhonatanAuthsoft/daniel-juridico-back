@@ -32,14 +32,14 @@ public class DevAssinaturaController {
     private final AssinaturaService assinaturaService;
     private final UsuarioRepository usuarioRepository;
 
-    @PostMapping("/expirar-trial")
-    @Operation(summary = "Expirar trial", description = "Força o fim do período de testes do usuário autenticado")
-    public ResponseEntity<ApiResponse<AssinaturaResponseDTO>> expirarTrial() {
+    @PostMapping("/bloquear")
+    @Operation(summary = "Bloquear assinatura", description = "Volta o usuário autenticado ao paywall (PENDENTE)")
+    public ResponseEntity<ApiResponse<AssinaturaResponseDTO>> bloquear() {
         UsuarioEntity usuario = obterUsuarioAutenticado();
-        assinaturaService.expirarTrial(usuario.getId());
+        assinaturaService.bloquearAssinatura(usuario.getId());
         return ResponseEntity.ok(ApiResponse.success(
                 assinaturaService.obterAssinaturaDoUsuario(usuario),
-                "Trial expirado"
+                "Assinatura bloqueada"
         ));
     }
 
@@ -66,7 +66,7 @@ public class DevAssinaturaController {
     }
 
     @PostMapping("/reset")
-    @Operation(summary = "Resetar assinatura", description = "Volta o usuário ao estado TRIAL inicial")
+    @Operation(summary = "Resetar assinatura", description = "Limpa os dados de loja e volta o usuário ao paywall")
     public ResponseEntity<ApiResponse<AssinaturaResponseDTO>> reset() {
         UsuarioEntity usuario = obterUsuarioAutenticado();
         assinaturaService.resetAssinatura(usuario.getId());

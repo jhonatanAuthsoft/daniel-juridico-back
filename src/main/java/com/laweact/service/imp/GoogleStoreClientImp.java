@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +12,7 @@ import com.google.api.services.androidpublisher.AndroidPublisher;
 import com.google.api.services.androidpublisher.model.SubscriptionPurchaseLineItem;
 import com.google.api.services.androidpublisher.model.SubscriptionPurchaseV2;
 import com.laweact.config.AssinaturaProperties;
+import com.laweact.config.GoogleAssinaturaEnabledCondition;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.assinatura.AssinaturaStoreStateDTO;
 import com.laweact.model.enums.AmbienteAssinaturaEnum;
@@ -25,7 +26,7 @@ import lombok.extern.log4j.Log4j2;
 @Service
 @RequiredArgsConstructor
 @Log4j2
-@ConditionalOnProperty(prefix = "laweact.assinatura.google", name = "enabled", havingValue = "true")
+@Conditional(GoogleAssinaturaEnabledCondition.class)
 public class GoogleStoreClientImp implements AssinaturaStoreClient {
 
     private static final String STATE_ACTIVE = "SUBSCRIPTION_STATE_ACTIVE";
@@ -102,14 +103,19 @@ public class GoogleStoreClientImp implements AssinaturaStoreClient {
         return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
     }
 
-    private StatusAssinaturaEnum mapGoogleStatus(String subscriptionState, LocalDateTime periodoFim) {
+    StatusAssinaturaEnum mapGoogleStatus(String subscriptionState, LocalDateTime periodoFim) {
         if (STATE_ACTIVE.equals(subscriptionState) || STATE_IN_GRACE.equals(subscriptionState)) {
             return StatusAssinaturaEnum.ATIVA;
         }
         if (STATE_ON_HOLD.equals(subscriptionState)) {
             return StatusAssinaturaEnum.EM_ATRASO;
         }
-        if (periodoFim != null && periodoFim.isAfter(LocalDateTime.now())) {
+        boolean periodoVigente = periodoFim != null && periodoFim.isAfter(LocalDateTime.now());
+        if (STATE_CANCELED.equals(subscriptionState)) {
+            // Cancelou a renovação: mantém o acesso até o fim do período já concedido.
+            return periodoVigente ? StatusAssinaturaEnum.CANCELADA : StatusAssinaturaEnum.EXPIRADA;
+        }
+        if (periodoVigente) {
             return StatusAssinaturaEnum.ATIVA;
         }
         return StatusAssinaturaEnum.EXPIRADA;

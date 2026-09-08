@@ -13,9 +13,6 @@ import lombok.Builder;
 public record AssinaturaResponseDTO(
         @NotNull StatusAssinaturaEnum status,
         @NotNull Boolean acessoLiberado,
-        @NotNull Boolean emTrial,
-        LocalDateTime trialFimEm,
-        Integer diasRestantesTrial,
         LocalDateTime periodoFimEm,
         PlataformaAssinaturaEnum plataforma,
         AmbienteAssinaturaEnum ambiente,

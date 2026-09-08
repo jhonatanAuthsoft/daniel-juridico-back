@@ -54,12 +54,6 @@ public class AssinaturaEntity extends BaseEntity {
     @Column(name = "original_transaction_id", length = 120, unique = true)
     private String originalTransactionId;
 
-    @Column(name = "trial_inicio_em")
-    private LocalDateTime trialInicioEm;
-
-    @Column(name = "trial_fim_em")
-    private LocalDateTime trialFimEm;
-
     @Column(name = "periodo_fim_em")
     private LocalDateTime periodoFimEm;
 

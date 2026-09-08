@@ -96,6 +96,7 @@ class SolicitacaoCriarE2ETest extends BaseE2ETest {
         );
         assertSuccess(cadastro, HttpStatus.CREATED);
         api.authenticate(cadastro.getBody().path("data").path("token").asText());
+        garantirAssinaturaSeAdvogado();
 
         ResponseEntity<JsonNode> response = api.post("/solicitacoes", CriarSolicitacaoInputDTO.builder()
                 .titulo("Não deveria")

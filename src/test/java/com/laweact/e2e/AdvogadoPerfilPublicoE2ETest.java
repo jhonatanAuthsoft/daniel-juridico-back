@@ -122,6 +122,7 @@ class AdvogadoPerfilPublicoE2ETest extends BaseE2ETest {
         );
         assertSuccess(outroAdv, HttpStatus.CREATED);
         api.authenticate(outroAdv.getBody().path("data").path("token").asText());
+        garantirAssinaturaSeAdvogado();
 
         ResponseEntity<JsonNode> response = api.get("/advogados/" + targetId);
         assertErrorCode(response, HttpStatus.FORBIDDEN, "FORBIDDEN");

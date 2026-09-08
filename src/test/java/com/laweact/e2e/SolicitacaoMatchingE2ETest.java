@@ -66,6 +66,7 @@ class SolicitacaoMatchingE2ETest extends BaseE2ETest {
         );
         assertSuccess(login, HttpStatus.OK);
         api.authenticate(login.getBody().path("data").path("token").asText());
+        garantirAssinaturaSeAdvogado();
     }
 
     private String autenticarCliente(String email, String documento) {
@@ -194,6 +195,7 @@ class SolicitacaoMatchingE2ETest extends BaseE2ETest {
         );
         assertSuccess(cadastro, HttpStatus.CREATED);
         api.authenticate(cadastro.getBody().path("data").path("token").asText());
+        garantirAssinaturaSeAdvogado();
         ResponseEntity<JsonNode> patch = api.patch(
                 "/advogados/me/disponibilidade",
                 Map.of("disponibilidade", "INDISPONIVEL")

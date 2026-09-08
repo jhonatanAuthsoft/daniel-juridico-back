@@ -317,6 +317,7 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
         );
         assertSuccess(cadastro, HttpStatus.CREATED);
         api.authenticate(cadastro.getBody().path("data").path("token").asText());
+        garantirAssinaturaSeAdvogado();
     }
 
     private static Map<String, Object> addressBody(

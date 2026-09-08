@@ -1,28 +1,28 @@
 package com.laweact.service.imp;
 
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import com.apple.itunes.storekit.client.APIException;
 import com.apple.itunes.storekit.client.AppStoreServerAPIClient;
+import com.apple.itunes.storekit.model.AutoRenewStatus;
 import com.apple.itunes.storekit.model.Environment;
+import com.apple.itunes.storekit.model.JWSRenewalInfoDecodedPayload;
 import com.apple.itunes.storekit.model.JWSTransactionDecodedPayload;
-import com.apple.itunes.storekit.model.Status;
 import com.apple.itunes.storekit.model.LastTransactionsItem;
+import com.apple.itunes.storekit.model.Status;
 import com.apple.itunes.storekit.model.StatusResponse;
 import com.apple.itunes.storekit.model.SubscriptionGroupIdentifierItem;
 import com.apple.itunes.storekit.verification.SignedDataVerifier;
 import com.apple.itunes.storekit.verification.VerificationException;
+import com.laweact.config.AppleAssinaturaEnabledCondition;
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.assinatura.AssinaturaStoreStateDTO;
 import com.laweact.model.enums.AmbienteAssinaturaEnum;
@@ -36,7 +36,7 @@ import lombok.extern.log4j.Log4j2;
 @Service
 @RequiredArgsConstructor
 @Log4j2
-@ConditionalOnProperty(prefix = "laweact.assinatura.apple", name = "enabled", havingValue = "true")
+@Conditional(AppleAssinaturaEnabledCondition.class)
 public class AppleStoreClientImp implements AssinaturaStoreClient {
 
     private final AppStoreServerAPIClient appStoreServerAPIClient;
@@ -83,6 +83,18 @@ public class AppleStoreClientImp implements AssinaturaStoreClient {
             throw new CustomError("Produto da transação não confere", HttpStatus.BAD_REQUEST);
         }
 
+        if (payload.getOriginalTransactionId() != null) {
+            try {
+                StatusResponse statuses = appStoreServerAPIClient.getAllSubscriptionStatuses(
+                        payload.getOriginalTransactionId(),
+                        Status.values()
+                );
+                return fromSubscriptionStatuses(statuses, productId, signedTransaction);
+            } catch (APIException | java.io.IOException e) {
+                log.warn("Não foi possível consultar status Apple após o JWS: {}", e.getMessage());
+            }
+        }
+
         LocalDateTime periodoFim = toLocalDateTime(payload.getExpiresDate());
         return AssinaturaStoreStateDTO.builder()
                 .status(isAtivo(periodoFim) ? StatusAssinaturaEnum.ATIVA : StatusAssinaturaEnum.EXPIRADA)
@@ -99,7 +111,7 @@ public class AppleStoreClientImp implements AssinaturaStoreClient {
     private AssinaturaStoreStateDTO fromSubscriptionStatuses(
             StatusResponse statuses,
             String productId,
-            String originalTransactionId
+            String purchaseToken
     ) throws VerificationException {
         List<SubscriptionGroupIdentifierItem> groups = statuses.getData() != null
                 ? statuses.getData()
@@ -118,31 +130,53 @@ public class AppleStoreClientImp implements AssinaturaStoreClient {
                 }
 
                 LocalDateTime periodoFim = toLocalDateTime(payload.getExpiresDate());
-                StatusAssinaturaEnum status = mapAppleStatus(subscriptionStatus.getStatus(), periodoFim);
+                boolean autoRenovacao = isAutoRenewing(subscriptionStatus);
+                StatusAssinaturaEnum status = mapAppleStatus(
+                        subscriptionStatus.getStatus(),
+                        periodoFim,
+                        autoRenovacao
+                );
                 return AssinaturaStoreStateDTO.builder()
                         .status(status)
                         .plataforma(PlataformaAssinaturaEnum.IOS)
                         .ambiente(mapAmbiente(payload.getEnvironment()))
                         .productId(payload.getProductId())
-                        .purchaseToken(originalTransactionId)
+                        .purchaseToken(purchaseToken)
                         .originalTransactionId(payload.getOriginalTransactionId())
                         .periodoFimEm(periodoFim)
-                        .autoRenovacao(subscriptionStatus.getStatus() != Status.EXPIRED)
+                        .autoRenovacao(autoRenovacao)
                         .build();
             }
         }
         throw new CustomError("Assinatura não encontrada na App Store", HttpStatus.NOT_FOUND);
     }
 
-    private StatusAssinaturaEnum mapAppleStatus(Status status, LocalDateTime periodoFim) {
+    private boolean isAutoRenewing(LastTransactionsItem subscriptionStatus) throws VerificationException {
+        if (subscriptionStatus.getSignedRenewalInfo() == null) {
+            return subscriptionStatus.getStatus() != Status.EXPIRED;
+        }
+        JWSRenewalInfoDecodedPayload renewal = signedDataVerifier.verifyAndDecodeRenewalInfo(
+                subscriptionStatus.getSignedRenewalInfo()
+        );
+        return renewal.getAutoRenewStatus() == AutoRenewStatus.ON;
+    }
+
+    private StatusAssinaturaEnum mapAppleStatus(
+            Status status,
+            LocalDateTime periodoFim,
+            boolean autoRenovacao
+    ) {
         if (status == Status.ACTIVE || status == Status.BILLING_GRACE_PERIOD) {
+            if (!autoRenovacao && isAtivo(periodoFim)) {
+                return StatusAssinaturaEnum.CANCELADA;
+            }
             return StatusAssinaturaEnum.ATIVA;
         }
         if (status == Status.BILLING_RETRY) {
             return StatusAssinaturaEnum.EM_ATRASO;
         }
         if (isAtivo(periodoFim)) {
-            return StatusAssinaturaEnum.ATIVA;
+            return autoRenovacao ? StatusAssinaturaEnum.ATIVA : StatusAssinaturaEnum.CANCELADA;
         }
         return StatusAssinaturaEnum.EXPIRADA;
     }

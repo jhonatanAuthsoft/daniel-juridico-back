@@ -212,7 +212,7 @@ public class AdvogadoServiceImp implements AdvogadoService {
         List<AdvogadoEspecialidadeEntity> especialidadesSalvas = salvarEspecialidades(advogadoSalvo, input.especialidades());
         List<PosGraduacaoAdvogadoEntity> posGraduacoesSalvas = salvarPosGraduacoes(advogadoSalvo, input.posGraduacoes());
 
-        assinaturaService.criarTrialParaAdvogado(usuarioSalvo);
+        assinaturaService.criarAssinaturaPendenteParaAdvogado(usuarioSalvo);
 
         UserDetails userDetails = usuarioDetailsServiceImp.loadUserByUsername(email);
         var tokens = sessaoService.criar(usuarioSalvo, userDetails, null);

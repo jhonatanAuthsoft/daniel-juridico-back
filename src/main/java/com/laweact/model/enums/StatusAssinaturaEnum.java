@@ -1,7 +1,7 @@
 package com.laweact.model.enums;
 
 public enum StatusAssinaturaEnum {
-    TRIAL,
+    PENDENTE,
     ATIVA,
     EM_ATRASO,
     EXPIRADA,

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.apple.itunes.storekit.model.AutoRenewStatus;
 import com.apple.itunes.storekit.model.JWSTransactionDecodedPayload;
 import com.apple.itunes.storekit.model.ResponseBodyV2DecodedPayload;
 import com.apple.itunes.storekit.verification.SignedDataVerifier;
@@ -91,9 +92,19 @@ public class AssinaturaNotificationServiceImp implements AssinaturaNotificationS
                     payload.getNotificationType() != null ? payload.getNotificationType().name() : "UNKNOWN",
                     input.signedPayload());
 
-            atualizarPorTipoApple(assinatura, payload.getNotificationType() != null
-                    ? payload.getNotificationType().name()
-                    : null, transaction);
+            AutoRenewStatus autoRenewStatus = null;
+            if (payload.getData().getSignedRenewalInfo() != null) {
+                autoRenewStatus = signedDataVerifier.get()
+                        .verifyAndDecodeRenewalInfo(payload.getData().getSignedRenewalInfo())
+                        .getAutoRenewStatus();
+            }
+
+            atualizarPorTipoApple(
+                    assinatura,
+                    payload.getNotificationType() != null ? payload.getNotificationType().name() : null,
+                    transaction,
+                    autoRenewStatus
+            );
         } catch (VerificationException e) {
             log.error("Falha ao verificar notificação Apple: {}", e.getMessage());
         }
@@ -142,17 +153,31 @@ public class AssinaturaNotificationServiceImp implements AssinaturaNotificationS
         }
     }
 
-    private void atualizarPorTipoApple(
+    void atualizarPorTipoApple(
             AssinaturaEntity assinatura,
             String notificationType,
-            JWSTransactionDecodedPayload transaction
+            JWSTransactionDecodedPayload transaction,
+            AutoRenewStatus autoRenewStatus
     ) {
-        if ("EXPIRED".equals(notificationType) || "REFUND".equals(notificationType)) {
+        if (autoRenewStatus != null) {
+            assinatura.setAutoRenovacao(autoRenewStatus == AutoRenewStatus.ON);
+        }
+
+        if ("EXPIRED".equals(notificationType)
+                || "REFUND".equals(notificationType)
+                || "GRACE_PERIOD_EXPIRED".equals(notificationType)) {
             assinatura.setStatus(StatusAssinaturaEnum.EXPIRADA);
         } else if ("DID_FAIL_TO_RENEW".equals(notificationType)) {
             assinatura.setStatus(StatusAssinaturaEnum.EM_ATRASO);
         } else if ("DID_RENEW".equals(notificationType) || "SUBSCRIBED".equals(notificationType)) {
             assinatura.setStatus(StatusAssinaturaEnum.ATIVA);
+        } else if ("DID_CHANGE_RENEWAL_STATUS".equals(notificationType) && autoRenewStatus != null) {
+            // Desligou a renovação (tipicamente cancelando dentro do mês grátis): registramos o
+            // cancelamento, mas o acesso segue até periodoFimEm — quem cancela não é cobrado e
+            // também não perde o app no mesmo instante.
+            assinatura.setStatus(autoRenewStatus == AutoRenewStatus.ON
+                    ? StatusAssinaturaEnum.ATIVA
+                    : StatusAssinaturaEnum.CANCELADA);
         }
 
         if (transaction.getExpiresDate() != null) {

@@ -10,7 +10,6 @@ import lombok.Data;
 @ConfigurationProperties(prefix = "laweact.assinatura")
 public class AssinaturaProperties {
 
-    private Duration trialDuration = Duration.ofDays(30);
     private Duration graceDuration = Duration.ofDays(3);
     private String productId = "laweact_basic_mensal";
     private FakeStore fakeStore = new FakeStore();
@@ -28,6 +27,7 @@ public class AssinaturaProperties {
         private boolean enabled = false;
         private String bundleId = "com.laweact.app";
         private String environment = "SANDBOX";
+        private Long appAppleId;
         private String issuerId;
         private String keyId;
         private String privateKey;

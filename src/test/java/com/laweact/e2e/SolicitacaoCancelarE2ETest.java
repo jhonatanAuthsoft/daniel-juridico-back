@@ -98,6 +98,7 @@ class SolicitacaoCancelarE2ETest extends BaseE2ETest {
         );
         assertSuccess(cadastro, HttpStatus.CREATED);
         api.authenticate(cadastro.getBody().path("data").path("token").asText());
+        garantirAssinaturaSeAdvogado();
 
         ResponseEntity<JsonNode> response = api.post("/solicitacoes/" + id + "/cancelar", null);
         assertErrorCode(response, HttpStatus.FORBIDDEN, "FORBIDDEN");

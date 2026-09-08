@@ -10,7 +10,7 @@ import com.laweact.model.entity.UsuarioEntity;
 
 public interface AssinaturaService {
 
-    AssinaturaEntity criarTrialParaAdvogado(UsuarioEntity usuario);
+    AssinaturaEntity criarAssinaturaPendenteParaAdvogado(UsuarioEntity usuario);
 
     AssinaturaResponseDTO obterMinhaAssinatura();
 
@@ -20,7 +20,7 @@ public interface AssinaturaService {
 
     AssinaturaReconciliacaoJobResultDTO reconciliar();
 
-    void expirarTrial(UUID usuarioId);
+    void bloquearAssinatura(UUID usuarioId);
 
     void expirarAssinatura(UUID usuarioId);
 

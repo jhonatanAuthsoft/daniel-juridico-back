@@ -1,11 +1,15 @@
 package com.laweact.e2e;
 
+import java.util.Map;
+import java.util.UUID;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -13,6 +17,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.laweact.e2e.support.ApiClient;
 import com.laweact.e2e.support.DatabaseCleaner;
 import com.laweact.repository.AdvogadoRepository;
@@ -82,5 +87,43 @@ public abstract class BaseE2ETest {
     void tearDownE2E() {
         api.logout();
         databaseCleaner.clear();
+    }
+
+    /**
+     * Advogado nasce no paywall (assinatura {@code PENDENTE}): o mês grátis é concedido pela
+     * loja, não pelo servidor. Chame depois de autenticar para que o usuário atual saia do
+     * paywall. Não faz nada para cliente ou para quem já tem acesso, então é seguro deixar
+     * nos helpers genéricos de autenticação.
+     */
+    protected void garantirAssinaturaSeAdvogado() {
+        ResponseEntity<JsonNode> me = api.get("/usuarios/me");
+        if (!me.getStatusCode().is2xxSuccessful() || me.getBody() == null) {
+            return;
+        }
+        JsonNode data = me.getBody().path("data");
+        if (!"ADVOGADO".equals(data.path("usuario").path("perfil").asText())) {
+            return;
+        }
+        if (data.path("assinatura").path("acessoLiberado").asBoolean()) {
+            return;
+        }
+        assinarPlanoDoAdvogadoAutenticado();
+    }
+
+    /**
+     * Assina o plano pela loja fake, como o app faz na tela de pagamento.
+     */
+    protected void assinarPlanoDoAdvogadoAutenticado() {
+        ResponseEntity<JsonNode> validar = api.post(
+                "/assinaturas/validar",
+                Map.of(
+                        "plataforma", "FAKE",
+                        "productId", "laweact_basic_mensal",
+                        "purchaseToken", "fake:e2e-" + UUID.randomUUID()
+                )
+        );
+        if (!validar.getStatusCode().is2xxSuccessful()) {
+            throw new IllegalStateException("Falha ao assinar plano no E2E: " + validar.getBody());
+        }
     }
 }

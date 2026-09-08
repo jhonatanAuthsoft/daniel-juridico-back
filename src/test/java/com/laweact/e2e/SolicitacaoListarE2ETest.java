@@ -133,6 +133,7 @@ class SolicitacaoListarE2ETest extends BaseE2ETest {
         );
         assertSuccess(loginAdv, HttpStatus.OK);
         api.authenticate(loginAdv.getBody().path("data").path("token").asText());
+        garantirAssinaturaSeAdvogado();
         assertSuccess(api.post("/conexoes/" + conexaoId + "/aceitar", java.util.Map.of()), HttpStatus.OK);
 
         api.logout();
@@ -224,6 +225,7 @@ class SolicitacaoListarE2ETest extends BaseE2ETest {
         );
         assertSuccess(cadastro, HttpStatus.CREATED);
         api.authenticate(cadastro.getBody().path("data").path("token").asText());
+        garantirAssinaturaSeAdvogado();
 
         ResponseEntity<JsonNode> response = api.get("/solicitacoes");
         assertErrorCode(response, HttpStatus.FORBIDDEN, "FORBIDDEN");

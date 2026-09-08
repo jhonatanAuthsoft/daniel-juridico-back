@@ -22,17 +22,6 @@ public interface AssinaturaRepository extends JpaRepository<AssinaturaEntity, UU
 
     @Query("""
             SELECT a FROM AssinaturaEntity a
-            WHERE a.status = :status
-              AND a.trialFimEm IS NOT NULL
-              AND a.trialFimEm < :agora
-            """)
-    List<AssinaturaEntity> findTrialsExpirados(
-            @Param("status") StatusAssinaturaEnum status,
-            @Param("agora") LocalDateTime agora
-    );
-
-    @Query("""
-            SELECT a FROM AssinaturaEntity a
             WHERE a.status IN :statuses
               AND a.periodoFimEm IS NOT NULL
               AND a.periodoFimEm < :agora

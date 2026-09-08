@@ -221,6 +221,7 @@ class ClienteEditarPerfilE2ETest extends BaseE2ETest {
         );
         assertSuccess(cadastro, HttpStatus.CREATED);
         api.authenticate(cadastro.getBody().path("data").path("token").asText());
+        garantirAssinaturaSeAdvogado();
 
         ResponseEntity<JsonNode> patch = api.patch(
                 "/clientes/me/dados-gerais",

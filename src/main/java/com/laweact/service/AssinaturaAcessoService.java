@@ -32,8 +32,10 @@ public class AssinaturaAcessoService {
         if (status == StatusAssinaturaEnum.ATIVA) {
             return assinatura.getPeriodoFimEm() == null || agora.isBefore(assinatura.getPeriodoFimEm());
         }
-        if (status == StatusAssinaturaEnum.TRIAL) {
-            return assinatura.getTrialFimEm() != null && agora.isBefore(assinatura.getTrialFimEm());
+        // Cancelou a renovação, mas o período já concedido continua valendo: quem desiste
+        // durante o mês grátis usa o app até o fim dele e não é cobrado.
+        if (status == StatusAssinaturaEnum.CANCELADA) {
+            return assinatura.getPeriodoFimEm() != null && agora.isBefore(assinatura.getPeriodoFimEm());
         }
         if (status == StatusAssinaturaEnum.EM_ATRASO) {
             if (assinatura.getPeriodoFimEm() == null) {

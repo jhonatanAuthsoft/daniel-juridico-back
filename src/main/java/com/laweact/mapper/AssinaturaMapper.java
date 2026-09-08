@@ -1,8 +1,5 @@
 package com.laweact.mapper;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-
 import org.springframework.stereotype.Component;
 
 import com.laweact.config.AssinaturaProperties;
@@ -31,23 +28,9 @@ public class AssinaturaMapper {
             return assinaturaBloqueada();
         }
 
-        LocalDateTime agora = LocalDateTime.now();
-        boolean emTrial = assinatura.getStatus() == StatusAssinaturaEnum.TRIAL
-                && assinatura.getTrialFimEm() != null
-                && agora.isBefore(assinatura.getTrialFimEm());
-
-        Integer diasRestantesTrial = null;
-        if (emTrial && assinatura.getTrialFimEm() != null) {
-            long dias = ChronoUnit.DAYS.between(agora.toLocalDate(), assinatura.getTrialFimEm().toLocalDate());
-            diasRestantesTrial = (int) Math.max(0, dias);
-        }
-
         return AssinaturaResponseDTO.builder()
                 .status(assinatura.getStatus())
                 .acessoLiberado(assinaturaAcessoService.isAcessoLiberado(usuario, assinatura))
-                .emTrial(emTrial)
-                .trialFimEm(assinatura.getTrialFimEm())
-                .diasRestantesTrial(diasRestantesTrial)
                 .periodoFimEm(assinatura.getPeriodoFimEm())
                 .plataforma(assinatura.getPlataforma())
                 .ambiente(assinatura.getAmbiente())
@@ -62,7 +45,6 @@ public class AssinaturaMapper {
         return AssinaturaResponseDTO.builder()
                 .status(StatusAssinaturaEnum.ATIVA)
                 .acessoLiberado(true)
-                .emTrial(false)
                 .productId(assinaturaProperties.getProductId())
                 .autoRenovacao(false)
                 .build();
@@ -70,9 +52,8 @@ public class AssinaturaMapper {
 
     private AssinaturaResponseDTO assinaturaBloqueada() {
         return AssinaturaResponseDTO.builder()
-                .status(StatusAssinaturaEnum.EXPIRADA)
+                .status(StatusAssinaturaEnum.PENDENTE)
                 .acessoLiberado(false)
-                .emTrial(false)
                 .productId(assinaturaProperties.getProductId())
                 .autoRenovacao(false)
                 .build();

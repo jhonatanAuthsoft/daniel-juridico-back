@@ -60,4 +60,14 @@ public class NotificacaoController {
         notificacaoService.lerTodas();
         return ResponseEntity.ok(ApiResponse.success(true, "Notificações marcadas como lidas"));
     }
+
+    @PostMapping("/ler-por-solicitacao/{solicitacaoId}")
+    @Operation(
+            summary = "Marcar lidas da solicitação",
+            description = "Marca como lidas as notificações do usuário autenticado referentes à solicitação"
+    )
+    public ResponseEntity<ApiResponse<Boolean>> lerPorSolicitacao(@PathVariable UUID solicitacaoId) {
+        notificacaoService.lerPorSolicitacao(solicitacaoId);
+        return ResponseEntity.ok(ApiResponse.success(true, "Notificações da solicitação marcadas como lidas"));
+    }
 }

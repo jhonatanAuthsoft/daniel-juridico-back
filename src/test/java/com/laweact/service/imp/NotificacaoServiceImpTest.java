@@ -26,8 +26,10 @@ import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.model.enums.StatusEnvioNotificacaoEnum;
 import com.laweact.model.enums.TipoNotificacaoEnum;
 import com.laweact.model.enums.UrgenciaSolicitacaoEnum;
+import com.laweact.repository.ConexaoRepository;
 import com.laweact.repository.DispositivoPushRepository;
 import com.laweact.repository.NotificacaoRepository;
+import com.laweact.repository.SolicitacaoRepository;
 import com.laweact.repository.UsuarioRepository;
 import com.laweact.service.ExpoPushClient;
 import com.laweact.service.ExpoPushClient.ExpoPushSendResult;
@@ -48,6 +50,12 @@ class NotificacaoServiceImpTest {
     @Mock
     private ExpoPushClient expoPushClient;
 
+    @Mock
+    private SolicitacaoRepository solicitacaoRepository;
+
+    @Mock
+    private ConexaoRepository conexaoRepository;
+
     private ExpoPushProperties expoPushProperties;
     private NotificacaoServiceImp service;
 
@@ -67,7 +75,9 @@ class NotificacaoServiceImpTest {
                 dispositivoPushRepository,
                 usuarioRepository,
                 expoPushClient,
-                expoPushProperties
+                expoPushProperties,
+                solicitacaoRepository,
+                conexaoRepository
         );
 
         destinatario = UsuarioEntity.builder()

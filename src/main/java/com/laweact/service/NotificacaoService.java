@@ -19,6 +19,8 @@ public interface NotificacaoService {
 
     void lerTodas();
 
+    void lerPorSolicitacao(UUID solicitacaoId);
+
     NotificacaoEntity criarETentarEnviar(
             UUID destinatarioId,
             UUID remetenteId,

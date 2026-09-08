@@ -41,4 +41,18 @@ public interface NotificacaoRepository extends JpaRepository<NotificacaoEntity, 
             @Param("destinatarioId") UUID destinatarioId,
             @Param("agora") LocalDateTime agora
     );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE NotificacaoEntity n
+            SET n.lidaEm = :agora
+            WHERE n.destinatario.id = :destinatarioId
+              AND n.lidaEm IS NULL
+              AND n.referenciaId IN :referenciaIds
+            """)
+    int marcarLidasPorReferencias(
+            @Param("destinatarioId") UUID destinatarioId,
+            @Param("referenciaIds") List<UUID> referenciaIds,
+            @Param("agora") LocalDateTime agora
+    );
 }

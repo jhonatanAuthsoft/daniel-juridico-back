@@ -213,6 +213,9 @@ public interface ConexaoRepository extends JpaRepository<ConexaoEntity, UUID> {
             """)
     List<ConexaoEntity> findBySolicitacaoId(@Param("solicitacaoId") UUID solicitacaoId);
 
+    @Query("SELECT c.id FROM ConexaoEntity c WHERE c.solicitacao.id = :solicitacaoId")
+    List<UUID> findIdsBySolicitacaoId(@Param("solicitacaoId") UUID solicitacaoId);
+
     @Query("""
             SELECT c.solicitacao.id, COUNT(c)
             FROM ConexaoEntity c

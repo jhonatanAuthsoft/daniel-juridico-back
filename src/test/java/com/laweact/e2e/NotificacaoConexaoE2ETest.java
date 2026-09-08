@@ -169,4 +169,66 @@ class NotificacaoConexaoE2ETest extends BaseE2ETest {
         assertThat(lista.getBody().path("data").get(0).path("tipo").asText()).isEqualTo("CONEXAO_SOLICITADA");
         assertThat(lista.getBody().path("data").get(0).path("statusEnvio").asText()).isEqualTo("SKIPPED");
     }
+
+    @Test
+    @DisplayName("abrir solicitação marca as notificações daquela solicitação como lidas")
+    void shouldMarkNotificationsReadWhenOpeningSolicitation() {
+        UUID solicitacaoId = criarSolicitacaoComMatch(
+                "bruna.ler.sol@laweact.com",
+                "cliente.ler.sol@laweact.com"
+        );
+        UUID advogadoId = UUID.fromString(jdbcTemplate.queryForObject(
+                "SELECT advogado_id::text FROM solicitacao_matches WHERE solicitacao_id = ?::uuid LIMIT 1",
+                String.class,
+                solicitacaoId
+        ));
+
+        ResponseEntity<JsonNode> criada = api.post(
+                "/conexoes",
+                Map.of("solicitacaoId", solicitacaoId.toString(), "advogadoId", advogadoId.toString())
+        );
+        assertSuccess(criada, HttpStatus.CREATED);
+        String conexaoId = criada.getBody().path("data").path("id").asText();
+
+        autenticarComo("bruna.ler.sol@laweact.com");
+        ResponseEntity<JsonNode> lerAdvogado = api.post(
+                "/notificacoes/ler-por-solicitacao/" + solicitacaoId,
+                Map.of()
+        );
+        assertSuccess(lerAdvogado, HttpStatus.OK);
+
+        ResponseEntity<JsonNode> listaAdvogado = api.get("/notificacoes");
+        assertSuccess(listaAdvogado, HttpStatus.OK);
+        JsonNode notifAdvogado = listaAdvogado.getBody().path("data").get(0);
+        assertThat(notifAdvogado.path("tipo").asText()).isEqualTo("CONEXAO_SOLICITADA");
+        assertThat(notifAdvogado.path("referenciaId").asText()).isEqualTo(conexaoId);
+        assertThat(notifAdvogado.path("lidaEm").asText()).isNotBlank();
+
+        ResponseEntity<JsonNode> badgeAdvogado = api.get("/notificacoes/nao-lidas/existe");
+        assertSuccess(badgeAdvogado, HttpStatus.OK);
+        assertThat(badgeAdvogado.getBody().path("data").path("existe").asBoolean()).isFalse();
+
+        ResponseEntity<JsonNode> aceita = api.post("/conexoes/" + conexaoId + "/aceitar", Map.of());
+        assertSuccess(aceita, HttpStatus.OK);
+
+        autenticarComo("cliente.ler.sol@laweact.com");
+        ResponseEntity<JsonNode> listaClienteAntes = api.get("/notificacoes");
+        assertSuccess(listaClienteAntes, HttpStatus.OK);
+        JsonNode notifClienteAntes = listaClienteAntes.getBody().path("data").get(0);
+        assertThat(notifClienteAntes.path("lidaEm").isNull() || notifClienteAntes.path("lidaEm").isMissingNode())
+                .isTrue();
+
+        ResponseEntity<JsonNode> lerCliente = api.post(
+                "/notificacoes/ler-por-solicitacao/" + solicitacaoId,
+                Map.of()
+        );
+        assertSuccess(lerCliente, HttpStatus.OK);
+
+        ResponseEntity<JsonNode> listaCliente = api.get("/notificacoes");
+        assertSuccess(listaCliente, HttpStatus.OK);
+        JsonNode notifCliente = listaCliente.getBody().path("data").get(0);
+        assertThat(notifCliente.path("tipo").asText()).isEqualTo("CONEXAO_ACEITA");
+        assertThat(notifCliente.path("referenciaId").asText()).isEqualTo(conexaoId);
+        assertThat(notifCliente.path("lidaEm").asText()).isNotBlank();
+    }
 }

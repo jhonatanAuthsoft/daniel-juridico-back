@@ -19,13 +19,17 @@ import com.laweact.dto.notificacao.NaoLidasExisteResponseDTO;
 import com.laweact.dto.notificacao.NotificacaoResponseDTO;
 import com.laweact.model.entity.DispositivoPushEntity;
 import com.laweact.model.entity.NotificacaoEntity;
+import com.laweact.model.entity.SolicitacaoEntity;
 import com.laweact.model.entity.UsuarioEntity;
+import com.laweact.model.enums.PerfilUsuarioEnum;
 import com.laweact.model.enums.ReferenciaNotificacaoEnum;
 import com.laweact.model.enums.StatusEnvioNotificacaoEnum;
 import com.laweact.model.enums.TipoNotificacaoEnum;
 import com.laweact.model.enums.UrgenciaSolicitacaoEnum;
+import com.laweact.repository.ConexaoRepository;
 import com.laweact.repository.DispositivoPushRepository;
 import com.laweact.repository.NotificacaoRepository;
+import com.laweact.repository.SolicitacaoRepository;
 import com.laweact.repository.UsuarioRepository;
 import com.laweact.service.ExpoPushClient;
 import com.laweact.service.ExpoPushClient.ExpoPushSendResult;
@@ -44,6 +48,8 @@ public class NotificacaoServiceImp implements NotificacaoService {
     private final UsuarioRepository usuarioRepository;
     private final ExpoPushClient expoPushClient;
     private final ExpoPushProperties expoPushProperties;
+    private final SolicitacaoRepository solicitacaoRepository;
+    private final ConexaoRepository conexaoRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -88,6 +94,20 @@ public class NotificacaoServiceImp implements NotificacaoService {
     public void lerTodas() {
         UsuarioEntity usuario = obterUsuarioAutenticado();
         notificacaoRepository.marcarTodasLidas(usuario.getId(), LocalDateTime.now());
+    }
+
+    @Override
+    @Transactional
+    public void lerPorSolicitacao(UUID solicitacaoId) {
+        UsuarioEntity usuario = obterUsuarioAutenticado();
+        SolicitacaoEntity solicitacao = solicitacaoRepository.findById(solicitacaoId)
+                .orElseThrow(() -> new CustomError("Solicitação não encontrada", HttpStatus.NOT_FOUND));
+
+        List<UUID> conexaoIds = conexaoIdsAutorizadas(usuario, solicitacao);
+        if (conexaoIds.isEmpty()) {
+            return;
+        }
+        notificacaoRepository.marcarLidasPorReferencias(usuario.getId(), conexaoIds, LocalDateTime.now());
     }
 
     @Override
@@ -227,6 +247,27 @@ public class NotificacaoServiceImp implements NotificacaoService {
                 .lidaEm(entity.getLidaEm())
                 .statusEnvio(entity.getStatusEnvio())
                 .build();
+    }
+
+    private List<UUID> conexaoIdsAutorizadas(UsuarioEntity usuario, SolicitacaoEntity solicitacao) {
+        UUID solicitacaoId = solicitacao.getId();
+        if (usuario.getPerfil() == PerfilUsuarioEnum.CLIENTE) {
+            if (!solicitacao.getCliente().getUsuarioId().equals(usuario.getId())) {
+                throw new CustomError("Solicitação de outro cliente", HttpStatus.FORBIDDEN, "FORBIDDEN");
+            }
+            return conexaoRepository.findIdsBySolicitacaoId(solicitacaoId);
+        }
+        if (usuario.getPerfil() == PerfilUsuarioEnum.ADVOGADO) {
+            return conexaoRepository
+                    .findBySolicitacao_IdAndAdvogado_UsuarioId(solicitacaoId, usuario.getId())
+                    .map(conexao -> List.of(conexao.getId()))
+                    .orElseThrow(() -> new CustomError(
+                            "Solicitação de outro advogado",
+                            HttpStatus.FORBIDDEN,
+                            "FORBIDDEN"
+                    ));
+        }
+        throw new CustomError("Perfil não autorizado", HttpStatus.FORBIDDEN, "FORBIDDEN");
     }
 
     private UsuarioEntity obterUsuarioAutenticado() {

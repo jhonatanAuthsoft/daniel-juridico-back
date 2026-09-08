@@ -36,6 +36,7 @@ public class AssinaturaInterceptor implements HandlerInterceptor {
             "/usuarios/me",
             "/usuarios/logout",
             "/usuarios/excluir-conta",
+            "/usuarios/aceitar-termos",
             "/assinaturas",
             "/arquivos",
             "/dev/assinaturas"

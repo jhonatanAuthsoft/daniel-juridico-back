@@ -100,4 +100,30 @@ class TermosAceiteE2ETest extends BaseE2ETest {
         assertThat(response.getStatusCode().is4xxClientError()).isTrue();
         assertThat(response.getBody().path("success").asBoolean()).isFalse();
     }
+
+    @Test
+    @DisplayName("advogado no paywall consegue aceitar termos antes de assinar")
+    void shouldAllowLawyerWithoutSubscriptionToAcceptTerms() {
+        ResponseEntity<JsonNode> cadastro = api.post(
+                "/advogados/cadastrar",
+                Fixtures.advogadoValido("termos.advogado@laweact.com", "26153377050", "880201")
+        );
+        assertSuccess(cadastro, HttpStatus.CREATED);
+        api.authenticate(cadastro.getBody().path("data").path("token").asText());
+
+        ResponseEntity<JsonNode> me = api.get("/usuarios/me");
+        assertThat(me.getBody().path("data").path("assinatura").path("acessoLiberado").asBoolean())
+                .isFalse();
+
+        ResponseEntity<JsonNode> response = api.post(
+                "/usuarios/aceitar-termos",
+                AceitarTermosInputDTO.builder()
+                        .checkboxConfirmado(true)
+                        .scrollConfirmado(true)
+                        .build()
+        );
+
+        assertSuccess(response, HttpStatus.OK);
+        assertThat(response.getBody().path("data").path("termosAceitos").asBoolean()).isTrue();
+    }
 }

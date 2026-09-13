@@ -390,7 +390,10 @@ public class AdvogadoServiceImp implements AdvogadoService {
     @Transactional
     public AdvogadoPerfilPublicoResponseDTO obterPerfilPublico(UUID advogadoId) {
         UsuarioEntity solicitante = obterUsuarioAutenticado();
-        if (solicitante.getPerfil() != PerfilUsuarioEnum.CLIENTE) {
+        boolean cliente = solicitante.getPerfil() == PerfilUsuarioEnum.CLIENTE;
+        boolean dono = solicitante.getPerfil() == PerfilUsuarioEnum.ADVOGADO
+                && solicitante.getId().equals(advogadoId);
+        if (!cliente && !dono) {
             throw new CustomError(
                     "Apenas clientes podem visualizar o perfil público do advogado",
                     HttpStatus.FORBIDDEN,

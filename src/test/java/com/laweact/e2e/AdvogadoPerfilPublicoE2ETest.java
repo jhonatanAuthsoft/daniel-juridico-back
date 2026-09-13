@@ -107,6 +107,28 @@ class AdvogadoPerfilPublicoE2ETest extends BaseE2ETest {
     }
 
     @Test
+    @DisplayName("advogado autenticado visualiza o próprio perfil público")
+    void shouldReturnOwnPublicProfileForAdvogado() {
+        ResponseEntity<JsonNode> cadastroAdv = api.post(
+                "/advogados/cadastrar",
+                Fixtures.advogadoValido("perfil.own@laweact.com", "39053344705", "155242")
+        );
+        assertSuccess(cadastroAdv, HttpStatus.CREATED);
+        String advogadoId = cadastroAdv.getBody().path("data").path("usuario").path("id").asText();
+        api.authenticate(cadastroAdv.getBody().path("data").path("token").asText());
+        garantirAssinaturaSeAdvogado();
+
+        ResponseEntity<JsonNode> response = api.get("/advogados/" + advogadoId);
+
+        assertSuccess(response, HttpStatus.OK);
+        JsonNode data = response.getBody().path("data");
+        assertThat(data.path("id").asText()).isEqualTo(advogadoId);
+        assertThat(data.path("nome").asText()).isEqualTo("João Advogado");
+        assertThat(data.has("cpf")).isFalse();
+        assertThat(data.has("email")).isFalse();
+    }
+
+    @Test
     @DisplayName("advogado autenticado não pode consultar perfil público de outro")
     void shouldForbidAdvogado() {
         ResponseEntity<JsonNode> cadastroAdv = api.post(

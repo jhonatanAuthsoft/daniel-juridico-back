@@ -1,5 +1,8 @@
 package com.laweact.dto.advogado;
 
+import java.util.List;
+
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -17,5 +20,8 @@ public record AtualizarGraduacaoAdvogadoInputDTO(
         @NotNull(message = "O ano de formação é obrigatório")
         @Min(value = 1950, message = "Ano de formação inválido")
         @Max(value = 2100, message = "Ano de formação inválido")
-        Integer anoFormacao
+        Integer anoFormacao,
+
+        @Valid
+        List<PosGraduacaoInputDTO> posGraduacoes
 ) {}

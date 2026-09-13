@@ -51,6 +51,7 @@ public class AdvogadoMapper {
                 .cpf(advogado.getCpf())
                 .nomePai(advogado.getNomePai())
                 .nomeMae(advogado.getNomeMae())
+                .dataNascimento(advogado.getDataNascimento())
                 .pronomeTratamento(advogado.getPronomeTratamento())
                 .fotoUrl(advogado.getFotoUrl())
                 .universidade(advogado.getUniversidade())

@@ -59,6 +59,7 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
 
         AdvogadoEntity advogadoDb = advogadoRepository.findByUsuarioId(usuarioDb.getId()).orElseThrow();
         assertThat(advogadoDb.getCpf()).isEqualTo(cpf);
+        assertThat(advogadoDb.getDataNascimento()).isEqualTo(LocalDate.of(1990, 5, 20));
         assertThat(advogadoDb.getFotoUrl()).isEqualTo(input.fotoUrl());
         assertThat(advogadoDb.getStatusVerificacao()).isEqualTo(StatusVerificacaoEnum.PENDENTE);
 
@@ -344,6 +345,7 @@ class AdvogadoCadastrarE2ETest extends BaseE2ETest {
                 .cpf(base.cpf())
                 .nomePai(base.nomePai())
                 .nomeMae(base.nomeMae())
+                .dataNascimento(base.dataNascimento())
                 .pronomeTratamento(base.pronomeTratamento())
                 .telefone(base.telefone())
                 .fotoUrl(base.fotoUrl())

@@ -22,7 +22,7 @@ public record OabInputDTO(
         @PastOrPresent(message = "A data de expedição deve ser no passado ou presente")
         LocalDate dataExpedicao,
 
-        /** Keys S3 das imagens da carteira (N fotos; limite de produto no front depois). */
-        @Size(max = 20, message = "São permitidas no máximo 20 fotos por OAB")
+        @NotNull(message = "As fotos de frente e verso da carteira OAB são obrigatórias")
+        @Size(min = 2, max = 20, message = "Envie as fotos de frente e verso da carteira OAB")
         List<String> fotosUrls
 ) {}

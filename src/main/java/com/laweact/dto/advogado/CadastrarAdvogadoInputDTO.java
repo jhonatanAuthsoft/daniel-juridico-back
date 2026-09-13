@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -37,6 +38,7 @@ public record CadastrarAdvogadoInputDTO(
         String senha,
 
         @NotBlank(message = "O RG é obrigatório")
+        @Size(max = 20, message = "O RG deve ter no máximo 20 caracteres")
         String rg,
 
         @NotBlank(message = "O órgão emissor do RG é obrigatório")
@@ -53,6 +55,10 @@ public record CadastrarAdvogadoInputDTO(
 
         @NotBlank(message = "O nome da mãe é obrigatório")
         String nomeMae,
+
+        @NotNull(message = "A data de nascimento é obrigatória")
+        @Past(message = "A data de nascimento deve ser no passado")
+        LocalDate dataNascimento,
 
         @NotNull(message = "O pronome de tratamento é obrigatório")
         PronomeTratamentoEnum pronomeTratamento,

@@ -41,6 +41,7 @@ public record CadastrarClienteInputDTO(
         @NotBlank(message = "O número do documento é obrigatório")
         String numeroDocumento,
 
+        @Size(max = 20, message = "O RG deve ter no máximo 20 caracteres")
         String rg,
 
         @Size(max = 20, message = "O órgão emissor do RG deve ter no máximo 20 caracteres")

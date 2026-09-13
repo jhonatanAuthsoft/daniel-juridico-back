@@ -70,6 +70,9 @@ public class AdvogadoEntity {
     @Column(name = "nome_mae", nullable = false)
     private String nomeMae;
 
+    @Column(name = "data_nascimento")
+    private LocalDate dataNascimento;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "pronome_tratamento", nullable = false, length = 20)
     private PronomeTratamentoEnum pronomeTratamento;

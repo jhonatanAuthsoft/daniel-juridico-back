@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
 import com.laweact.dto.advogado.AdvogadoPerfilPublicoResponseDTO;
+import com.laweact.dto.advogado.AtualizarAreasAtuacaoAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarBiografiaAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDadosGeraisAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDisponibilidadeAdvogadoInputDTO;
@@ -27,6 +28,8 @@ public interface AdvogadoService {
     AdvogadoDetalheResponseDTO atualizarEndereco(AtualizarEnderecoAdvogadoInputDTO input);
 
     AdvogadoDetalheResponseDTO atualizarFormasCobranca(AtualizarFormasCobrancaAdvogadoInputDTO input);
+
+    AdvogadoDetalheResponseDTO atualizarAreasAtuacao(AtualizarAreasAtuacaoAdvogadoInputDTO input);
 
     AdvogadoDetalheResponseDTO atualizarBiografia(AtualizarBiografiaAdvogadoInputDTO input);
 

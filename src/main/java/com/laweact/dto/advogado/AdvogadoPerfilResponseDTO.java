@@ -23,6 +23,7 @@ public record AdvogadoPerfilResponseDTO(
         @NotBlank String cpf,
         String nomePai,
         @NotBlank String nomeMae,
+        LocalDate dataNascimento,
         @NotNull PronomeTratamentoEnum pronomeTratamento,
         String fotoUrl,
         @NotBlank String universidade,

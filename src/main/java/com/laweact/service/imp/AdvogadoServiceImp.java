@@ -21,6 +21,7 @@ import com.laweact.config.exception.CustomError;
 import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
 import com.laweact.dto.advogado.AdvogadoPerfilPublicoResponseDTO;
 import com.laweact.dto.advogado.AreaAtuacaoInputDTO;
+import com.laweact.dto.advogado.AtualizarAreasAtuacaoAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarBiografiaAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDadosGeraisAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDisponibilidadeAdvogadoInputDTO;
@@ -165,6 +166,7 @@ public class AdvogadoServiceImp implements AdvogadoService {
                 .cpf(cpf)
                 .nomePai(blankToNull(input.nomePai()))
                 .nomeMae(input.nomeMae().trim())
+                .dataNascimento(input.dataNascimento())
                 .pronomeTratamento(input.pronomeTratamento())
                 .fotoUrl(blankToNull(input.fotoUrl()))
                 .universidade(input.universidade().trim())
@@ -258,6 +260,9 @@ public class AdvogadoServiceImp implements AdvogadoService {
 
         usuario.setNomeCompleto(nome);
         advogado.setNomeCompleto(nome);
+        if (input.dataNascimento() != null) {
+            advogado.setDataNascimento(input.dataNascimento());
+        }
         usuarioRepository.save(usuario);
         advogadoRepository.save(advogado);
         return carregarDetalhe(usuario.getId());
@@ -296,6 +301,23 @@ public class AdvogadoServiceImp implements AdvogadoService {
         advogadoFormaCobrancaRepository.deleteAll(atuais);
         advogadoFormaCobrancaRepository.flush();
         salvarFormasCobranca(advogado, formas);
+        return carregarDetalhe(usuario.getId());
+    }
+
+    @Override
+    @Transactional
+    public AdvogadoDetalheResponseDTO atualizarAreasAtuacao(AtualizarAreasAtuacaoAdvogadoInputDTO input) {
+        UsuarioEntity usuario = obterAdvogadoAutenticado();
+        AdvogadoEntity advogado = obterAdvogado(usuario.getId());
+        if (input.areasAtuacao() == null || input.areasAtuacao().isEmpty()) {
+            throw new CustomError("Informe ao menos uma área de atuação", HttpStatus.BAD_REQUEST);
+        }
+
+        List<AreaAtuacaoAdvogadoEntity> atuais =
+                areaAtuacaoAdvogadoRepository.findByAdvogadoUsuarioId(usuario.getId());
+        areaAtuacaoAdvogadoRepository.deleteAll(atuais);
+        areaAtuacaoAdvogadoRepository.flush();
+        salvarAreas(advogado, input.areasAtuacao());
         return carregarDetalhe(usuario.getId());
     }
 
@@ -355,6 +377,12 @@ public class AdvogadoServiceImp implements AdvogadoService {
         advogado.setCurso(input.curso().trim());
         advogado.setAnoFormacao(input.anoFormacao());
         advogadoRepository.save(advogado);
+
+        List<PosGraduacaoAdvogadoEntity> atuais =
+                posGraduacaoAdvogadoRepository.findByAdvogadoUsuarioId(usuario.getId());
+        posGraduacaoAdvogadoRepository.deleteAll(atuais);
+        posGraduacaoAdvogadoRepository.flush();
+        salvarPosGraduacoes(advogado, input.posGraduacoes());
         return carregarDetalhe(usuario.getId());
     }
 
@@ -891,6 +919,7 @@ public class AdvogadoServiceImp implements AdvogadoService {
     }
 
     private OabEntity salvarOab(AdvogadoEntity advogado, OabInputDTO input, boolean principal) {
+        validarFotosOab(input);
         OabEntity oab = OabEntity.builder()
                 .advogado(advogado)
                 .numero(input.numero().trim())
@@ -901,6 +930,16 @@ public class AdvogadoServiceImp implements AdvogadoService {
                 .statusValidacao(StatusVerificacaoEnum.PENDENTE)
                 .build();
         return oabRepository.save(oab);
+    }
+
+    private void validarFotosOab(OabInputDTO input) {
+        List<String> fotos = normalizarFotosUrls(input.fotosUrls());
+        if (fotos.size() < 2) {
+            throw new CustomError(
+                    "As fotos de frente e verso da carteira OAB são obrigatórias",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
     }
 
     private List<String> normalizarFotosUrls(List<String> fotosUrls) {

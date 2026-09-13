@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
 import com.laweact.dto.advogado.AdvogadoPerfilPublicoResponseDTO;
+import com.laweact.dto.advogado.AtualizarAreasAtuacaoAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarBiografiaAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDadosGeraisAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDisponibilidadeAdvogadoInputDTO;
@@ -67,7 +68,7 @@ public class AdvogadoController {
     @PatchMapping("/me/dados-gerais")
     @Operation(
             summary = "Atualizar dados gerais",
-            description = "Atualiza o nome do advogado autenticado. CPF, RG e e-mail não são editáveis."
+            description = "Atualiza o nome e a data de nascimento do advogado autenticado. CPF, RG e e-mail não são editáveis."
     )
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiResponse<AdvogadoDetalheResponseDTO>> atualizarDadosGerais(
@@ -101,6 +102,19 @@ public class AdvogadoController {
     ) {
         AdvogadoDetalheResponseDTO response = advogadoService.atualizarFormasCobranca(input);
         return ResponseEntity.ok(ApiResponse.success(response, "Formas de cobrança atualizadas com sucesso"));
+    }
+
+    @PatchMapping("/me/areas-atuacao")
+    @Operation(
+            summary = "Atualizar áreas de atuação",
+            description = "Substitui as cidades de atuação do advogado autenticado. Informe ao menos uma cidade."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<AdvogadoDetalheResponseDTO>> atualizarAreasAtuacao(
+            @Valid @RequestBody AtualizarAreasAtuacaoAdvogadoInputDTO input
+    ) {
+        AdvogadoDetalheResponseDTO response = advogadoService.atualizarAreasAtuacao(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Áreas de atuação atualizadas com sucesso"));
     }
 
     @PatchMapping("/me/biografia")
@@ -144,15 +158,15 @@ public class AdvogadoController {
 
     @PatchMapping("/me/graduacao")
     @Operation(
-            summary = "Atualizar graduação",
-            description = "Atualiza universidade, curso e ano de formação do advogado autenticado"
+            summary = "Atualizar formação",
+            description = "Atualiza a graduação principal e substitui as pós-graduações do advogado autenticado"
     )
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiResponse<AdvogadoDetalheResponseDTO>> atualizarGraduacao(
             @Valid @RequestBody AtualizarGraduacaoAdvogadoInputDTO input
     ) {
         AdvogadoDetalheResponseDTO response = advogadoService.atualizarGraduacao(input);
-        return ResponseEntity.ok(ApiResponse.success(response, "Graduação atualizada com sucesso"));
+        return ResponseEntity.ok(ApiResponse.success(response, "Formação atualizada com sucesso"));
     }
 
     @GetMapping("/{id}")

@@ -27,6 +27,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.laweact.config.exception.CustomError;
 import com.laweact.dto.advogado.AdvogadoDetalheResponseDTO;
+import com.laweact.dto.advogado.AreaAtuacaoInputDTO;
+import com.laweact.dto.advogado.AtualizarAreasAtuacaoAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarBiografiaAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDisponibilidadeAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDadosGeraisAdvogadoInputDTO;
@@ -35,10 +37,12 @@ import com.laweact.dto.advogado.AtualizarEnderecoAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarFormasCobrancaAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarGraduacaoAdvogadoInputDTO;
 import com.laweact.dto.advogado.OabInputDTO;
+import com.laweact.dto.advogado.PosGraduacaoInputDTO;
 import com.laweact.mapper.AdvogadoMapper;
 import com.laweact.model.entity.AdvogadoEntity;
 import com.laweact.model.entity.EnderecoEntity;
 import com.laweact.model.entity.FormaCobrancaEntity;
+import com.laweact.model.entity.PosGraduacaoAdvogadoEntity;
 import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.model.enums.DisponibilidadeAdvogadoEnum;
 import com.laweact.model.enums.PerfilUsuarioEnum;
@@ -200,11 +204,15 @@ class AdvogadoEditarPerfilServiceTest {
         stubDetalhe();
 
         service.atualizarDadosGerais(
-                AtualizarDadosGeraisAdvogadoInputDTO.builder().nomeCompleto("João Advogado Lima").build()
+                AtualizarDadosGeraisAdvogadoInputDTO.builder()
+                        .nomeCompleto("João Advogado Lima")
+                        .dataNascimento(LocalDate.of(1988, 3, 12))
+                        .build()
         );
 
         assertThat(usuario.getNomeCompleto()).isEqualTo("João Advogado Lima");
         assertThat(advogado.getNomeCompleto()).isEqualTo("João Advogado Lima");
+        assertThat(advogado.getDataNascimento()).isEqualTo(LocalDate.of(1988, 3, 12));
         verify(usuarioRepository).save(usuario);
         verify(advogadoRepository).save(advogado);
     }
@@ -271,6 +279,39 @@ class AdvogadoEditarPerfilServiceTest {
     }
 
     @Test
+    @DisplayName("substitui áreas de atuação")
+    void shouldReplaceServiceAreas() {
+        stubAuthenticatedAdvogado();
+        stubDetalhe();
+
+        service.atualizarAreasAtuacao(AtualizarAreasAtuacaoAdvogadoInputDTO.builder()
+                .areasAtuacao(List.of(
+                        AreaAtuacaoInputDTO.builder().estado("sp").cidade("Adamantina").build(),
+                        AreaAtuacaoInputDTO.builder().estado("SP").cidade("Avaré").build()
+                ))
+                .build());
+
+        verify(areaAtuacaoAdvogadoRepository).deleteAll(List.of());
+        verify(areaAtuacaoAdvogadoRepository, org.mockito.Mockito.times(2)).save(any());
+    }
+
+    @Test
+    @DisplayName("rejeita áreas de atuação vazias")
+    void shouldRejectEmptyServiceAreas() {
+        stubAuthenticatedAdvogado();
+
+        assertThatThrownBy(() -> service.atualizarAreasAtuacao(AtualizarAreasAtuacaoAdvogadoInputDTO.builder()
+                .areasAtuacao(List.of())
+                .build()))
+                .isInstanceOf(CustomError.class)
+                .satisfies(ex -> {
+                    CustomError error = (CustomError) ex;
+                    assertThat(error.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(error.getMessage()).containsIgnoringCase("área de atuação");
+                });
+    }
+
+    @Test
     @DisplayName("atualiza pronome e biografia")
     void shouldUpdateBiography() {
         stubAuthenticatedAdvogado();
@@ -298,6 +339,7 @@ class AdvogadoEditarPerfilServiceTest {
                         .numero("810011")
                         .uf("SP")
                         .dataExpedicao(LocalDate.of(2016, 3, 15))
+                        .fotosUrls(List.of("tmp/oab/frente.jpg", "tmp/oab/verso.jpg"))
                         .build())
                 .build()))
                 .isInstanceOf(CustomError.class)
@@ -324,11 +366,13 @@ class AdvogadoEditarPerfilServiceTest {
                         .numero("123456")
                         .uf("SP")
                         .dataExpedicao(LocalDate.of(2018, 1, 10))
+                        .fotosUrls(List.of("tmp/oab/frente.jpg", "tmp/oab/verso.jpg"))
                         .build())
                 .oabsSuplementares(List.of(OabInputDTO.builder()
                         .numero("654321")
                         .uf("RJ")
                         .dataExpedicao(LocalDate.of(2016, 3, 15))
+                        .fotosUrls(List.of("tmp/oab/frente2.jpg", "tmp/oab/verso2.jpg"))
                         .build()))
                 .build());
 
@@ -366,6 +410,38 @@ class AdvogadoEditarPerfilServiceTest {
         assertThat(advogado.getCurso()).isEqualTo("Direito");
         assertThat(advogado.getAnoFormacao()).isEqualTo(2018);
         verify(advogadoRepository).save(advogado);
+        verify(posGraduacaoAdvogadoRepository).deleteAll(List.of());
+    }
+
+    @Test
+    @DisplayName("substitui pós-graduações ao atualizar formação")
+    void shouldReplacePostgraduates() {
+        stubAuthenticatedAdvogado();
+        stubDetalhe();
+        PosGraduacaoAdvogadoEntity atual = PosGraduacaoAdvogadoEntity.builder()
+                .advogado(advogado)
+                .nomeCurso("MBA")
+                .instituicao("FIA")
+                .anoFormacao(2019)
+                .build();
+        when(posGraduacaoAdvogadoRepository.findByAdvogadoUsuarioId(usuarioId))
+                .thenReturn(List.of(atual))
+                .thenReturn(List.of());
+
+        service.atualizarGraduacao(AtualizarGraduacaoAdvogadoInputDTO.builder()
+                .universidade("PUC-SP")
+                .curso("Direito")
+                .anoFormacao(2018)
+                .posGraduacoes(List.of(PosGraduacaoInputDTO.builder()
+                        .nomeCurso("LLM Direito Digital")
+                        .instituicao("FGV")
+                        .anoFormacao(2020)
+                        .build()))
+                .build());
+
+        verify(posGraduacaoAdvogadoRepository).deleteAll(List.of(atual));
+        verify(posGraduacaoAdvogadoRepository).flush();
+        verify(posGraduacaoAdvogadoRepository).save(any());
     }
 
     @Test

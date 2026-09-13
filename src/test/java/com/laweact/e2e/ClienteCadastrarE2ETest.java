@@ -190,6 +190,36 @@ class ClienteCadastrarE2ETest extends BaseE2ETest {
     }
 
     @Test
+    @DisplayName("deve rejeitar RG com mais de 20 caracteres")
+    void shouldFailWhenRgIsTooLong() {
+        CadastrarClienteInputDTO input = CadastrarClienteInputDTO.builder()
+                .nomeCompleto("Maria Silva")
+                .email("rg.longo@laweact.com")
+                .senha(Fixtures.VALID_PASSWORD)
+                .profissao("Analista")
+                .tipoDocumento(com.laweact.model.enums.TipoDocumentoEnum.CPF)
+                .numeroDocumento("52998224725")
+                .rg("1".repeat(21))
+                .rgOrgaoEmissor("SSP")
+                .rgUf("SP")
+                .dataNascimento(java.time.LocalDate.of(1990, 5, 20))
+                .pronomes(com.laweact.model.enums.PronomesEnum.ELA)
+                .telefone("11999999999")
+                .cep("01310-100")
+                .logradouro("Av. Paulista")
+                .numero("1000")
+                .bairro("Bela Vista")
+                .cidade("São Paulo")
+                .estado("SP")
+                .build();
+
+        ResponseEntity<JsonNode> response = api.post("/clientes/cadastrar", input);
+
+        assertErrorDetailContains(response, HttpStatus.UNPROCESSABLE_ENTITY, "no máximo 20");
+        assertThat(usuarioRepository.count()).isZero();
+    }
+
+    @Test
     @DisplayName("deve exigir campos de CPF (nome, RG, nascimento, profissão)")
     void shouldFailCpfWithoutRequiredFields() {
         CadastrarClienteInputDTO input = CadastrarClienteInputDTO.builder()

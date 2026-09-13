@@ -31,13 +31,18 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
 
         ResponseEntity<JsonNode> patch = api.patch(
                 "/advogados/me/dados-gerais",
-                Map.of("nomeCompleto", "João Advogado Lima")
+                Map.of(
+                        "nomeCompleto", "João Advogado Lima",
+                        "dataNascimento", "1988-03-12"
+                )
         );
         assertSuccess(patch, HttpStatus.OK);
         assertThat(patch.getBody().path("data").path("perfil").path("nomeCompleto").asText())
                 .isEqualTo("João Advogado Lima");
         assertThat(patch.getBody().path("data").path("perfil").path("cpf").asText())
                 .isEqualTo("39053344705");
+        assertThat(patch.getBody().path("data").path("perfil").path("dataNascimento").asText())
+                .isEqualTo("1988-03-12");
 
         ResponseEntity<JsonNode> me = api.get("/usuarios/me");
         assertSuccess(me, HttpStatus.OK);
@@ -45,12 +50,15 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
         assertThat(data.path("usuario").path("nomeCompleto").asText()).isEqualTo("João Advogado Lima");
         assertThat(data.path("advogado").path("perfil").path("nomeCompleto").asText())
                 .isEqualTo("João Advogado Lima");
+        assertThat(data.path("advogado").path("perfil").path("dataNascimento").asText())
+                .isEqualTo("1988-03-12");
 
         UsuarioEntity usuario = usuarioRepository.findByEmail("edit.adv.nome@laweact.com").orElseThrow();
         assertThat(usuario.getNomeCompleto()).isEqualTo("João Advogado Lima");
         AdvogadoEntity advogado = advogadoRepository.findByUsuarioId(usuario.getId()).orElseThrow();
         assertThat(advogado.getNomeCompleto()).isEqualTo("João Advogado Lima");
         assertThat(advogado.getCpf()).isEqualTo("39053344705");
+        assertThat(advogado.getDataNascimento()).isEqualTo(java.time.LocalDate.of(1988, 3, 12));
     }
 
     @Test
@@ -165,6 +173,43 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
     }
 
     @Test
+    @DisplayName("PATCH áreas de atuação substitui a lista e GET /me reflete")
+    void shouldUpdateServiceAreas() {
+        authenticateAdvogado("edit.adv.areas@laweact.com", "28001238938", "810015");
+
+        ResponseEntity<JsonNode> patch = api.patch(
+                "/advogados/me/areas-atuacao",
+                Map.of("areasAtuacao", List.of(
+                        Map.of("estado", "SP", "cidade", "Adamantina"),
+                        Map.of("estado", "SP", "cidade", "Avaré"),
+                        Map.of("estado", "BA", "cidade", "Salvador")
+                ))
+        );
+        assertSuccess(patch, HttpStatus.OK);
+        JsonNode areas = patch.getBody().path("data").path("areasAtuacao");
+        assertThat(areas).hasSize(3);
+        assertThat(areas.findValuesAsText("cidade"))
+                .containsExactlyInAnyOrder("Adamantina", "Avaré", "Salvador");
+
+        ResponseEntity<JsonNode> me = api.get("/usuarios/me");
+        assertSuccess(me, HttpStatus.OK);
+        assertThat(me.getBody().path("data").path("advogado").path("areasAtuacao").findValuesAsText("cidade"))
+                .containsExactlyInAnyOrder("Adamantina", "Avaré", "Salvador");
+    }
+
+    @Test
+    @DisplayName("PATCH áreas de atuação rejeita lista vazia")
+    void shouldRejectEmptyServiceAreas() {
+        authenticateAdvogado("edit.adv.areas.empty@laweact.com", "26153377050", "810016");
+
+        ResponseEntity<JsonNode> patch = api.patch(
+                "/advogados/me/areas-atuacao",
+                Map.of("areasAtuacao", List.of())
+        );
+        assertThat(patch.getStatusCode().is4xxClientError()).isTrue();
+    }
+
+    @Test
     @DisplayName("PATCH biografia atualiza pronome e texto")
     void shouldUpdateBiography() {
         authenticateAdvogado("edit.adv.bio@laweact.com", "52998224725", "810008");
@@ -207,8 +252,8 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
         authenticateAdvogado("edit.adv.oab@laweact.com", "11144477735", "810010");
 
         Map<String, Object> body = new HashMap<>();
-        body.put("oabPrincipal", oabBody("810010", "SP", "2016-03-15", List.of("tmp/oab/frente.jpg")));
-        body.put("oabsSuplementares", List.of(oabBody("910010", "RJ", "2018-01-20", List.of())));
+        body.put("oabPrincipal", oabBody("810010", "SP", "2016-03-15", List.of("tmp/oab/frente.jpg", "tmp/oab/verso.jpg")));
+        body.put("oabsSuplementares", List.of(oabBody("910010", "RJ", "2018-01-20", List.of("tmp/oab/frente2.jpg", "tmp/oab/verso2.jpg"))));
 
         ResponseEntity<JsonNode> patch = api.patch("/advogados/me/documentacao", body);
         assertSuccess(patch, HttpStatus.OK);
@@ -236,7 +281,7 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
         authenticateAdvogado("edit.adv.oab.outro@laweact.com", "71428793860", "810012");
 
         Map<String, Object> body = new HashMap<>();
-        body.put("oabPrincipal", oabBody("810011", "SP", "2016-03-15", List.of()));
+        body.put("oabPrincipal", oabBody("810011", "SP", "2016-03-15", List.of("tmp/oab/frente.jpg", "tmp/oab/verso.jpg")));
 
         ResponseEntity<JsonNode> patch = api.patch("/advogados/me/documentacao", body);
         assertErrorDetailContains(patch, HttpStatus.BAD_REQUEST, "OAB");
@@ -271,26 +316,38 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
     }
 
     @Test
-    @DisplayName("PATCH graduação atualiza universidade, curso e ano")
+    @DisplayName("PATCH graduação atualiza universidade, curso, ano e pós-graduações")
     void shouldUpdateGraduation() {
         authenticateAdvogado("edit.adv.grad@laweact.com", "39053344705", "810013");
 
         ResponseEntity<JsonNode> patch = api.patch("/advogados/me/graduacao", Map.of(
                 "universidade", "PUC-SP",
                 "curso", "Direito",
-                "anoFormacao", 2018
+                "anoFormacao", 2018,
+                "posGraduacoes", List.of(Map.of(
+                        "nomeCurso", "LLM Direito Digital",
+                        "instituicao", "FGV",
+                        "anoFormacao", 2020
+                ))
         ));
         assertSuccess(patch, HttpStatus.OK);
         JsonNode perfil = patch.getBody().path("data").path("perfil");
         assertThat(perfil.path("universidade").asText()).isEqualTo("PUC-SP");
         assertThat(perfil.path("curso").asText()).isEqualTo("Direito");
         assertThat(perfil.path("anoFormacao").asInt()).isEqualTo(2018);
+        JsonNode pos = patch.getBody().path("data").path("posGraduacoes");
+        assertThat(pos).hasSize(1);
+        assertThat(pos.get(0).path("nomeCurso").asText()).isEqualTo("LLM Direito Digital");
+        assertThat(pos.get(0).path("instituicao").asText()).isEqualTo("FGV");
+        assertThat(pos.get(0).path("anoFormacao").asInt()).isEqualTo(2020);
 
         ResponseEntity<JsonNode> me = api.get("/usuarios/me");
         assertSuccess(me, HttpStatus.OK);
         JsonNode mePerfil = me.getBody().path("data").path("advogado").path("perfil");
         assertThat(mePerfil.path("universidade").asText()).isEqualTo("PUC-SP");
         assertThat(mePerfil.path("anoFormacao").asInt()).isEqualTo(2018);
+        assertThat(me.getBody().path("data").path("advogado").path("posGraduacoes").get(0).path("instituicao").asText())
+                .isEqualTo("FGV");
     }
 
     @Test

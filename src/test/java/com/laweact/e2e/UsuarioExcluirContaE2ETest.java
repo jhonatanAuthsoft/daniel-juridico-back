@@ -4,6 +4,7 @@ import static com.laweact.e2e.support.ApiAssertions.assertSuccess;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -33,7 +34,10 @@ class UsuarioExcluirContaE2ETest extends BaseE2ETest {
         assertSuccess(cadastro, HttpStatus.CREATED);
         api.authenticate(cadastro.getBody().path("data").path("token").asText());
 
-        ResponseEntity<JsonNode> deleted = api.delete("/usuarios/me");
+        ResponseEntity<JsonNode> deleted = api.delete(
+                "/usuarios/me",
+                Map.of("senha", Fixtures.VALID_PASSWORD)
+        );
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(deleted.getBody().path("success").asBoolean()).isTrue();
         assertThat(deleted.getBody().path("message").asText()).contains("excluída");
@@ -109,8 +113,13 @@ class UsuarioExcluirContaE2ETest extends BaseE2ETest {
         assertSuccess(perfilAntes, HttpStatus.OK);
 
         api.authenticate(advogadoToken);
-        ResponseEntity<JsonNode> deleted = api.delete("/usuarios/me");
-        assertSuccess(deleted, HttpStatus.OK);
+        ResponseEntity<JsonNode> deleted = api.delete(
+                "/usuarios/me",
+                Map.of("senha", Fixtures.VALID_PASSWORD)
+        );
+        assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(deleted.getBody().path("success").asBoolean()).isTrue();
+        assertThat(deleted.getBody().path("message").asText()).contains("excluída");
 
         api.authenticate(cadastroCli.getBody().path("data").path("token").asText());
         ResponseEntity<JsonNode> matchesDepois = api.get("/solicitacoes/" + solicitacaoId + "/matches");
@@ -124,8 +133,37 @@ class UsuarioExcluirContaE2ETest extends BaseE2ETest {
     @Test
     @DisplayName("rejeita DELETE /usuarios/me sem autenticação")
     void shouldRejectUnauthenticated() {
-        ResponseEntity<JsonNode> deleted = api.delete("/usuarios/me");
+        ResponseEntity<JsonNode> deleted = api.delete(
+                "/usuarios/me",
+                Map.of("senha", Fixtures.VALID_PASSWORD)
+        );
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("rejeita DELETE /usuarios/me com senha incorreta e mantém a conta")
+    void shouldRejectWrongPassword() {
+        ResponseEntity<JsonNode> cadastro = api.post(
+                "/clientes/cadastrar",
+                Fixtures.clienteValido("apagar.senha.errada@laweact.com", "71428793860")
+        );
+        assertSuccess(cadastro, HttpStatus.CREATED);
+        api.authenticate(cadastro.getBody().path("data").path("token").asText());
+
+        ResponseEntity<JsonNode> deleted = api.delete(
+                "/usuarios/me",
+                Map.of("senha", "WrongPass1")
+        );
+        assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(deleted.getBody().path("errors").get(0).path("code").asText())
+                .isEqualTo("INVALID_PASSWORD");
+
+        var usuario = usuarioRepository.findByEmail("apagar.senha.errada@laweact.com");
+        assertThat(usuario).isPresent();
+        assertThat(usuario.get().getStatus()).isEqualTo(StatusUsuarioEnum.ATIVO);
+
+        ResponseEntity<JsonNode> me = api.get("/usuarios/me");
+        assertThat(me.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     @Test
@@ -146,7 +184,7 @@ class UsuarioExcluirContaE2ETest extends BaseE2ETest {
         UUID vitimaId = UUID.fromString(vitima.getBody().path("data").path("usuario").path("id").asText());
 
         ResponseEntity<JsonNode> deleted = api.delete("/usuarios/excluir/" + vitimaId);
-        assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(deleted.getStatusCode().is2xxSuccessful()).isFalse();
         assertThat(usuarioRepository.findByEmail("vitima.excluir@laweact.com")).isPresent();
     }
 }

@@ -26,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.laweact.config.JwtUtil;
 import com.laweact.config.exception.CustomError;
+import com.laweact.dto.usuario.ExcluirContaInputDTO;
 import com.laweact.mapper.UsuarioMapper;
 import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.model.enums.PerfilUsuarioEnum;
@@ -104,12 +105,13 @@ class UsuarioExcluirContaServiceTest {
     @DisplayName("encerra sessões e marca o usuário autenticado como excluído")
     void shouldEndSessionsAndSoftDeleteAuthenticatedUser() {
         when(usuarioRepository.findByEmail("maria@laweact.com")).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches("Secret12", "hashed")).thenReturn(true);
         when(conexaoRepository.findByCliente_UsuarioIdOrAdvogado_UsuarioId(usuario.getId(), usuario.getId()))
                 .thenReturn(List.of());
         when(solicitacaoRepository.findByCliente_UsuarioId(usuario.getId()))
                 .thenReturn(List.of());
 
-        service.excluirUsuarioAutenticado();
+        service.excluirUsuarioAutenticado(ExcluirContaInputDTO.builder().senha("Secret12").build());
 
         verify(sessaoService).encerrarTodasDoUsuario(usuario.getId());
         verify(usuarioRepository).save(usuario);
@@ -119,11 +121,32 @@ class UsuarioExcluirContaServiceTest {
     }
 
     @Test
+    @DisplayName("rejeita senha incorreta e não exclui a conta")
+    void shouldRejectWrongPassword() {
+        when(usuarioRepository.findByEmail("maria@laweact.com")).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches("WrongPass1", "hashed")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.excluirUsuarioAutenticado(
+                ExcluirContaInputDTO.builder().senha("WrongPass1").build()
+        ))
+                .isInstanceOf(CustomError.class)
+                .hasMessageContaining("senha está incorreta")
+                .extracting(error -> ((CustomError) error).getHttpStatus())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+
+        verify(usuarioRepository, never()).save(usuario);
+        verify(sessaoService, never()).encerrarTodasDoUsuario(usuario.getId());
+        assertThat(usuario.getStatus()).isEqualTo(StatusUsuarioEnum.ATIVO);
+    }
+
+    @Test
     @DisplayName("rejeita chamada sem autenticação")
     void shouldRejectUnauthenticated() {
         SecurityContextHolder.clearContext();
 
-        assertThatThrownBy(() -> service.excluirUsuarioAutenticado())
+        assertThatThrownBy(() -> service.excluirUsuarioAutenticado(
+                ExcluirContaInputDTO.builder().senha("Secret12").build()
+        ))
                 .isInstanceOf(CustomError.class)
                 .hasMessageContaining("não autenticado")
                 .extracting(error -> ((CustomError) error).getHttpStatus())

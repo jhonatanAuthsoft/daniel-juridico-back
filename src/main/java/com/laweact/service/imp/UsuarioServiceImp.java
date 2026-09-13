@@ -9,6 +9,7 @@ import com.laweact.dto.usuario.AtualizarPreferenciasInputDTO;
 import com.laweact.dto.usuario.AtualizarSenhaInputDTO;
 import com.laweact.dto.usuario.AtualizarSenhaResponseDTO;
 import com.laweact.dto.usuario.EmailDisponivelResponseDTO;
+import com.laweact.dto.usuario.ExcluirContaInputDTO;
 import com.laweact.dto.usuario.FotoPerfilResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
@@ -317,7 +318,7 @@ public class UsuarioServiceImp implements UsuarioService {
 
     @Override
     @Transactional
-    public void excluirUsuarioAutenticado() {
+    public void excluirUsuarioAutenticado(ExcluirContaInputDTO input) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserDetails userDetails)) {
             throw new CustomError("Usuário não autenticado", HttpStatus.UNAUTHORIZED);
@@ -325,6 +326,10 @@ public class UsuarioServiceImp implements UsuarioService {
 
         UsuarioEntity usuario = usuarioRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new CustomError("Usuário não encontrado", HttpStatus.NOT_FOUND));
+
+        if (!passwordEncoder.matches(input.senha(), usuario.getSenha())) {
+            throw new CustomError("A senha está incorreta", HttpStatus.BAD_REQUEST, "INVALID_PASSWORD");
+        }
 
         sessaoService.encerrarTodasDoUsuario(usuario.getId());
         ocultarConteudosDoUsuario(usuario);

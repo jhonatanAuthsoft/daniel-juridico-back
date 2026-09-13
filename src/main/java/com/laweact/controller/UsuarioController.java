@@ -25,6 +25,7 @@ import com.laweact.dto.usuario.AtualizarPreferenciasInputDTO;
 import com.laweact.dto.usuario.AtualizarSenhaInputDTO;
 import com.laweact.dto.usuario.AtualizarSenhaResponseDTO;
 import com.laweact.dto.usuario.EmailDisponivelResponseDTO;
+import com.laweact.dto.usuario.ExcluirContaInputDTO;
 import com.laweact.dto.usuario.FotoPerfilResponseDTO;
 import com.laweact.dto.usuario.LogAcessoTelaResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
@@ -222,11 +223,14 @@ public class UsuarioController {
     @DeleteMapping("/me")
     @Operation(
             summary = "Excluir conta",
-            description = "Marca a conta do usuário autenticado como excluída (soft delete), oculta os conteúdos e encerra todas as sessões"
+            description = "Confirma a senha, marca a conta do usuário autenticado como excluída "
+                    + "(soft delete), oculta os conteúdos e encerra todas as sessões"
     )
     @SecurityRequirement(name = "bearerAuth")
-    public ResponseEntity<ApiResponse<Void>> excluirConta() {
-        usuarioService.excluirUsuarioAutenticado();
+    public ResponseEntity<ApiResponse<Void>> excluirConta(
+            @Valid @RequestBody ExcluirContaInputDTO input
+    ) {
+        usuarioService.excluirUsuarioAutenticado(input);
         return ResponseEntity.ok(ApiResponse.success("Conta excluída com sucesso"));
     }
 

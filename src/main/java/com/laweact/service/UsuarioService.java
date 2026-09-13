@@ -8,6 +8,7 @@ import com.laweact.dto.usuario.AtualizarPreferenciasInputDTO;
 import com.laweact.dto.usuario.AtualizarSenhaInputDTO;
 import com.laweact.dto.usuario.AtualizarSenhaResponseDTO;
 import com.laweact.dto.usuario.EmailDisponivelResponseDTO;
+import com.laweact.dto.usuario.ExcluirContaInputDTO;
 import com.laweact.dto.usuario.FotoPerfilResponseDTO;
 import com.laweact.dto.usuario.LoginUsuarioInputDTO;
 import com.laweact.dto.usuario.LoginUsuarioResponseDTO;
@@ -36,7 +37,7 @@ public interface UsuarioService {
 
     EmailDisponivelResponseDTO verificarEmailDisponivel(String email);
 
-    void excluirUsuarioAutenticado();
+    void excluirUsuarioAutenticado(ExcluirContaInputDTO input);
 
     UsuarioResponseDTO obterUsuarioPorId(UUID id);
 

@@ -256,9 +256,11 @@ public class AdvogadoServiceImp implements AdvogadoService {
     public AdvogadoDetalheResponseDTO atualizarDadosGerais(AtualizarDadosGeraisAdvogadoInputDTO input) {
         UsuarioEntity usuario = obterAdvogadoAutenticado();
         String nome = requireNome(input.nomeCompleto());
+        String telefone = requireTelefone(input.telefone());
         AdvogadoEntity advogado = obterAdvogado(usuario.getId());
 
         usuario.setNomeCompleto(nome);
+        usuario.setTelefone(telefone);
         advogado.setNomeCompleto(nome);
         if (input.dataNascimento() != null) {
             advogado.setDataNascimento(input.dataNascimento());
@@ -665,6 +667,17 @@ public class AdvogadoServiceImp implements AdvogadoService {
             throw new CustomError("O nome é obrigatório", HttpStatus.BAD_REQUEST);
         }
         return nomeCompleto.trim();
+    }
+
+    private String requireTelefone(String telefone) {
+        if (telefone == null || telefone.isBlank()) {
+            throw new CustomError("O telefone é obrigatório", HttpStatus.BAD_REQUEST);
+        }
+        String digits = telefone.replaceAll("\\D", "");
+        if (digits.isBlank()) {
+            throw new CustomError("O telefone é obrigatório", HttpStatus.BAD_REQUEST);
+        }
+        return digits;
     }
 
     private void garantirOabsDisponiveis(

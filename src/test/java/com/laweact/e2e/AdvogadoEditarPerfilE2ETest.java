@@ -33,6 +33,7 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
                 "/advogados/me/dados-gerais",
                 Map.of(
                         "nomeCompleto", "João Advogado Lima",
+                        "telefone", "(11) 97777-6666",
                         "dataNascimento", "1988-03-12"
                 )
         );
@@ -48,6 +49,7 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
         assertSuccess(me, HttpStatus.OK);
         JsonNode data = me.getBody().path("data");
         assertThat(data.path("usuario").path("nomeCompleto").asText()).isEqualTo("João Advogado Lima");
+        assertThat(data.path("usuario").path("telefone").asText()).isEqualTo("11977776666");
         assertThat(data.path("advogado").path("perfil").path("nomeCompleto").asText())
                 .isEqualTo("João Advogado Lima");
         assertThat(data.path("advogado").path("perfil").path("dataNascimento").asText())
@@ -55,6 +57,7 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
 
         UsuarioEntity usuario = usuarioRepository.findByEmail("edit.adv.nome@laweact.com").orElseThrow();
         assertThat(usuario.getNomeCompleto()).isEqualTo("João Advogado Lima");
+        assertThat(usuario.getTelefone()).isEqualTo("11977776666");
         AdvogadoEntity advogado = advogadoRepository.findByUsuarioId(usuario.getId()).orElseThrow();
         assertThat(advogado.getNomeCompleto()).isEqualTo("João Advogado Lima");
         assertThat(advogado.getCpf()).isEqualTo("39053344705");
@@ -68,9 +71,27 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
 
         ResponseEntity<JsonNode> patch = api.patch(
                 "/advogados/me/dados-gerais",
-                Map.of("nomeCompleto", "   ")
+                Map.of(
+                        "nomeCompleto", "   ",
+                        "telefone", "11988887777"
+                )
         );
         assertErrorDetailContains(patch, HttpStatus.UNPROCESSABLE_ENTITY, "nome");
+    }
+
+    @Test
+    @DisplayName("PATCH dados gerais rejeita telefone em branco")
+    void shouldRejectBlankPhone() {
+        authenticateAdvogado("edit.adv.blank.phone@laweact.com", "12345678909", "810017");
+
+        ResponseEntity<JsonNode> patch = api.patch(
+                "/advogados/me/dados-gerais",
+                Map.of(
+                        "nomeCompleto", "João Advogado",
+                        "telefone", "   "
+                )
+        );
+        assertErrorDetailContains(patch, HttpStatus.UNPROCESSABLE_ENTITY, "telefone");
     }
 
     @Test
@@ -362,7 +383,10 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
 
         ResponseEntity<JsonNode> patch = api.patch(
                 "/advogados/me/dados-gerais",
-                Map.of("nomeCompleto", "Não deveria")
+                Map.of(
+                        "nomeCompleto", "Não deveria",
+                        "telefone", "11999999999"
+                )
         );
         assertErrorCode(patch, HttpStatus.FORBIDDEN, "FORBIDDEN");
     }

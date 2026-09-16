@@ -206,11 +206,13 @@ class AdvogadoEditarPerfilServiceTest {
         service.atualizarDadosGerais(
                 AtualizarDadosGeraisAdvogadoInputDTO.builder()
                         .nomeCompleto("João Advogado Lima")
+                        .telefone("(11) 97777-6666")
                         .dataNascimento(LocalDate.of(1988, 3, 12))
                         .build()
         );
 
         assertThat(usuario.getNomeCompleto()).isEqualTo("João Advogado Lima");
+        assertThat(usuario.getTelefone()).isEqualTo("11977776666");
         assertThat(advogado.getNomeCompleto()).isEqualTo("João Advogado Lima");
         assertThat(advogado.getDataNascimento()).isEqualTo(LocalDate.of(1988, 3, 12));
         verify(usuarioRepository).save(usuario);
@@ -223,13 +225,35 @@ class AdvogadoEditarPerfilServiceTest {
         when(usuarioRepository.findByEmail("joao@laweact.com")).thenReturn(Optional.of(usuario));
 
         assertThatThrownBy(() -> service.atualizarDadosGerais(
-                AtualizarDadosGeraisAdvogadoInputDTO.builder().nomeCompleto("   ").build()
+                AtualizarDadosGeraisAdvogadoInputDTO.builder()
+                        .nomeCompleto("   ")
+                        .telefone("11988887777")
+                        .build()
         ))
                 .isInstanceOf(CustomError.class)
                 .satisfies(ex -> {
                     CustomError error = (CustomError) ex;
                     assertThat(error.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
                     assertThat(error.getMessage()).containsIgnoringCase("nome");
+                });
+    }
+
+    @Test
+    @DisplayName("rejeita telefone em branco")
+    void shouldRejectBlankPhone() {
+        when(usuarioRepository.findByEmail("joao@laweact.com")).thenReturn(Optional.of(usuario));
+
+        assertThatThrownBy(() -> service.atualizarDadosGerais(
+                AtualizarDadosGeraisAdvogadoInputDTO.builder()
+                        .nomeCompleto("João Advogado")
+                        .telefone("   ")
+                        .build()
+        ))
+                .isInstanceOf(CustomError.class)
+                .satisfies(ex -> {
+                    CustomError error = (CustomError) ex;
+                    assertThat(error.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(error.getMessage()).containsIgnoringCase("telefone");
                 });
     }
 

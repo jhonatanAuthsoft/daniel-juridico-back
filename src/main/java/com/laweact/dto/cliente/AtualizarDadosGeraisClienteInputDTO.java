@@ -6,5 +6,8 @@ import lombok.Builder;
 @Builder
 public record AtualizarDadosGeraisClienteInputDTO(
         @NotBlank(message = "O nome é obrigatório")
-        String nomeCompleto
+        String nomeCompleto,
+
+        @NotBlank(message = "O telefone é obrigatório")
+        String telefone
 ) {}

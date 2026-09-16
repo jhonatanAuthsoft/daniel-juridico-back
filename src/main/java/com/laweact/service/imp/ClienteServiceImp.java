@@ -125,9 +125,11 @@ public class ClienteServiceImp implements ClienteService {
     public ClienteDetalheResponseDTO atualizarDadosGerais(AtualizarDadosGeraisClienteInputDTO input) {
         UsuarioEntity usuario = obterClienteAutenticado();
         String nome = requireNome(input.nomeCompleto());
+        String telefone = requireTelefone(input.telefone());
 
         ClienteEntity cliente = obterCliente(usuario.getId());
         usuario.setNomeCompleto(nome);
+        usuario.setTelefone(telefone);
         cliente.setNomeCompleto(nome);
         if (cliente.getTipoDocumento() == TipoDocumentoEnum.CNPJ) {
             cliente.setRazaoSocial(nome);
@@ -217,6 +219,17 @@ public class ClienteServiceImp implements ClienteService {
             throw new CustomError("O nome é obrigatório", HttpStatus.BAD_REQUEST);
         }
         return nomeCompleto.trim();
+    }
+
+    private String requireTelefone(String telefone) {
+        if (isBlank(telefone)) {
+            throw new CustomError("O telefone é obrigatório", HttpStatus.BAD_REQUEST);
+        }
+        String digits = telefone.replaceAll("\\D", "");
+        if (digits.isBlank()) {
+            throw new CustomError("O telefone é obrigatório", HttpStatus.BAD_REQUEST);
+        }
+        return digits;
     }
 
     private String firstNonBlank(String primary, String fallback) {

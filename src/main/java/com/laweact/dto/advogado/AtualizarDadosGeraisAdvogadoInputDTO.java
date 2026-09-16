@@ -11,6 +11,9 @@ public record AtualizarDadosGeraisAdvogadoInputDTO(
         @NotBlank(message = "O nome é obrigatório")
         String nomeCompleto,
 
+        @NotBlank(message = "O telefone é obrigatório")
+        String telefone,
+
         @Past(message = "A data de nascimento deve ser no passado")
         LocalDate dataNascimento
 ) {}

@@ -10,8 +10,10 @@ import com.laweact.dto.advogado.AtualizarDadosGeraisAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDisponibilidadeAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDocumentacaoAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarEnderecoAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarEspecialidadesAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarFormasCobrancaAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarGraduacaoAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarModalidadesAdvogadoInputDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoInputDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoResponseDTO;
 import com.laweact.dto.avaliacao.AvaliacaoItemResponseDTO;
@@ -30,6 +32,10 @@ public interface AdvogadoService {
     AdvogadoDetalheResponseDTO atualizarFormasCobranca(AtualizarFormasCobrancaAdvogadoInputDTO input);
 
     AdvogadoDetalheResponseDTO atualizarAreasAtuacao(AtualizarAreasAtuacaoAdvogadoInputDTO input);
+
+    AdvogadoDetalheResponseDTO atualizarModalidades(AtualizarModalidadesAdvogadoInputDTO input);
+
+    AdvogadoDetalheResponseDTO atualizarEspecialidades(AtualizarEspecialidadesAdvogadoInputDTO input);
 
     AdvogadoDetalheResponseDTO atualizarBiografia(AtualizarBiografiaAdvogadoInputDTO input);
 

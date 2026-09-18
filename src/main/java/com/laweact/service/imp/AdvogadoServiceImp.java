@@ -27,8 +27,10 @@ import com.laweact.dto.advogado.AtualizarDadosGeraisAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDisponibilidadeAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDocumentacaoAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarEnderecoAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarEspecialidadesAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarFormasCobrancaAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarGraduacaoAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarModalidadesAdvogadoInputDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoInputDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoResponseDTO;
 import com.laweact.dto.advogado.EspecialidadeInputDTO;
@@ -320,6 +322,52 @@ public class AdvogadoServiceImp implements AdvogadoService {
         areaAtuacaoAdvogadoRepository.deleteAll(atuais);
         areaAtuacaoAdvogadoRepository.flush();
         salvarAreas(advogado, input.areasAtuacao());
+        return carregarDetalhe(usuario.getId());
+    }
+
+    @Override
+    @Transactional
+    public AdvogadoDetalheResponseDTO atualizarModalidades(AtualizarModalidadesAdvogadoInputDTO input) {
+        UsuarioEntity usuario = obterAdvogadoAutenticado();
+        AdvogadoEntity advogado = obterAdvogado(usuario.getId());
+        if (input.modalidades() == null || input.modalidades().isEmpty()) {
+            throw new CustomError("Informe ao menos uma modalidade de atuação", HttpStatus.BAD_REQUEST);
+        }
+
+        List<ModalidadeAtuacaoEntity> modalidades = resolverModalidades(input.modalidades());
+        validarRegrasModalidades(
+                modalidades,
+                toEspecialidadeInputs(advogadoEspecialidadeRepository.findByAdvogadoUsuarioId(usuario.getId()))
+        );
+
+        List<AdvogadoModalidadeEntity> atuais =
+                advogadoModalidadeRepository.findByAdvogadoUsuarioId(usuario.getId());
+        advogadoModalidadeRepository.deleteAll(atuais);
+        advogadoModalidadeRepository.flush();
+        salvarModalidades(advogado, modalidades);
+        return carregarDetalhe(usuario.getId());
+    }
+
+    @Override
+    @Transactional
+    public AdvogadoDetalheResponseDTO atualizarEspecialidades(AtualizarEspecialidadesAdvogadoInputDTO input) {
+        UsuarioEntity usuario = obterAdvogadoAutenticado();
+        AdvogadoEntity advogado = obterAdvogado(usuario.getId());
+        List<EspecialidadeInputDTO> especialidades =
+                input.especialidades() == null ? List.of() : input.especialidades();
+
+        List<ModalidadeAtuacaoEntity> modalidadesAtuais = advogadoModalidadeRepository
+                .findByAdvogadoUsuarioId(usuario.getId())
+                .stream()
+                .map(AdvogadoModalidadeEntity::getModalidade)
+                .toList();
+        validarRegrasModalidades(modalidadesAtuais, especialidades);
+
+        List<AdvogadoEspecialidadeEntity> atuais =
+                advogadoEspecialidadeRepository.findByAdvogadoUsuarioId(usuario.getId());
+        advogadoEspecialidadeRepository.deleteAll(atuais);
+        advogadoEspecialidadeRepository.flush();
+        salvarEspecialidades(advogado, especialidades);
         return carregarDetalhe(usuario.getId());
     }
 
@@ -760,6 +808,21 @@ public class AdvogadoServiceImp implements AdvogadoService {
                     HttpStatus.BAD_REQUEST
             );
         }
+    }
+
+    private List<EspecialidadeInputDTO> toEspecialidadeInputs(List<AdvogadoEspecialidadeEntity> entities) {
+        return entities.stream()
+                .map(entity -> EspecialidadeInputDTO.builder()
+                        .especialidadeCodigo(
+                                entity.getEspecialidade() != null ? entity.getEspecialidade().getCodigo() : null
+                        )
+                        .especialidadeLivre(entity.getEspecialidadeLivre())
+                        .subespecialidadeCodigo(
+                                entity.getSubespecialidade() != null ? entity.getSubespecialidade().getCodigo() : null
+                        )
+                        .subespecialidadeLivre(entity.getSubespecialidadeLivre())
+                        .build())
+                .toList();
     }
 
     private List<FormaCobrancaEntity> resolverFormasCobranca(List<String> codigos) {

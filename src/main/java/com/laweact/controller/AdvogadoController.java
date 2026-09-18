@@ -23,8 +23,10 @@ import com.laweact.dto.advogado.AtualizarDadosGeraisAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDisponibilidadeAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDocumentacaoAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarEnderecoAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarEspecialidadesAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarFormasCobrancaAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarGraduacaoAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarModalidadesAdvogadoInputDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoInputDTO;
 import com.laweact.dto.advogado.CadastrarAdvogadoResponseDTO;
 import com.laweact.dto.avaliacao.AvaliacaoItemResponseDTO;
@@ -115,6 +117,32 @@ public class AdvogadoController {
     ) {
         AdvogadoDetalheResponseDTO response = advogadoService.atualizarAreasAtuacao(input);
         return ResponseEntity.ok(ApiResponse.success(response, "Áreas de atuação atualizadas com sucesso"));
+    }
+
+    @PatchMapping("/me/modalidades")
+    @Operation(
+            summary = "Atualizar modalidades de atuação",
+            description = "Substitui as modalidades de atuação do advogado autenticado"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<AdvogadoDetalheResponseDTO>> atualizarModalidades(
+            @Valid @RequestBody AtualizarModalidadesAdvogadoInputDTO input
+    ) {
+        AdvogadoDetalheResponseDTO response = advogadoService.atualizarModalidades(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Modalidades atualizadas com sucesso"));
+    }
+
+    @PatchMapping("/me/especialidades")
+    @Operation(
+            summary = "Atualizar especialidades",
+            description = "Substitui as especialidades do advogado autenticado"
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<AdvogadoDetalheResponseDTO>> atualizarEspecialidades(
+            @Valid @RequestBody AtualizarEspecialidadesAdvogadoInputDTO input
+    ) {
+        AdvogadoDetalheResponseDTO response = advogadoService.atualizarEspecialidades(input);
+        return ResponseEntity.ok(ApiResponse.success(response, "Especialidades atualizadas com sucesso"));
     }
 
     @PatchMapping("/me/biografia")

@@ -337,6 +337,96 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
     }
 
     @Test
+    @DisplayName("PATCH modalidades substitui a lista e GET /me reflete")
+    void shouldUpdateModalidades() {
+        authenticateAdvogado("edit.adv.mod@laweact.com", "39053344705", "810018");
+
+        ResponseEntity<JsonNode> patch = api.patch(
+                "/advogados/me/modalidades",
+                Map.of("modalidades", List.of("CONSULTOR", "PAUTISTA"))
+        );
+        assertSuccess(patch, HttpStatus.OK);
+        assertThat(extractCodigos(patch.getBody().path("data").path("modalidades")))
+                .containsExactlyInAnyOrder("CONSULTOR", "PAUTISTA");
+
+        ResponseEntity<JsonNode> me = api.get("/usuarios/me");
+        assertSuccess(me, HttpStatus.OK);
+        assertThat(extractCodigos(me.getBody().path("data").path("advogado").path("modalidades")))
+                .containsExactlyInAnyOrder("CONSULTOR", "PAUTISTA");
+    }
+
+    @Test
+    @DisplayName("PATCH modalidades rejeita lista vazia")
+    void shouldRejectEmptyModalidades() {
+        authenticateAdvogado("edit.adv.mod.empty@laweact.com", "52998224725", "810019");
+
+        ResponseEntity<JsonNode> patch = api.patch(
+                "/advogados/me/modalidades",
+                Map.of("modalidades", List.of())
+        );
+        assertThat(patch.getStatusCode().is4xxClientError()).isTrue();
+    }
+
+    @Test
+    @DisplayName("PATCH modalidades rejeita NENHUMA_DAS_ANTERIORES misturada com outras")
+    void shouldRejectMixedNenhumaModalidade() {
+        authenticateAdvogado("edit.adv.mod.mix@laweact.com", "15350946056", "810020");
+
+        ResponseEntity<JsonNode> patch = api.patch(
+                "/advogados/me/modalidades",
+                Map.of("modalidades", List.of("GENERALISTA", "NENHUMA_DAS_ANTERIORES"))
+        );
+        assertErrorDetailContains(patch, HttpStatus.BAD_REQUEST, "Nenhuma das anteriores");
+    }
+
+    @Test
+    @DisplayName("PATCH especialidades substitui a lista e GET /me reflete")
+    void shouldUpdateEspecialidades() {
+        authenticateAdvogado("edit.adv.esp@laweact.com", "11144477735", "810021");
+
+        ResponseEntity<JsonNode> patch = api.patch(
+                "/advogados/me/especialidades",
+                Map.of("especialidades", List.of(
+                        Map.of(
+                                "especialidadeCodigo", "CIVIL",
+                                "subespecialidadeCodigo", "CONTRATOS"
+                        ),
+                        Map.of("especialidadeCodigo", "TRABALHISTA")
+                ))
+        );
+        assertSuccess(patch, HttpStatus.OK);
+        JsonNode especialidades = patch.getBody().path("data").path("especialidades");
+        assertThat(especialidades).hasSize(2);
+        assertThat(especialidades.findValuesAsText("especialidadeCodigo"))
+                .containsExactlyInAnyOrder("CIVIL", "TRABALHISTA");
+        assertThat(especialidades.findValuesAsText("subespecialidadeCodigo"))
+                .contains("CONTRATOS");
+
+        ResponseEntity<JsonNode> me = api.get("/usuarios/me");
+        assertSuccess(me, HttpStatus.OK);
+        assertThat(me.getBody().path("data").path("advogado").path("especialidades")
+                .findValuesAsText("especialidadeCodigo"))
+                .containsExactlyInAnyOrder("CIVIL", "TRABALHISTA");
+    }
+
+    @Test
+    @DisplayName("PATCH especialidades rejeita lista vazia quando a modalidade é NENHUMA_DAS_ANTERIORES")
+    void shouldRejectEmptyEspecialidadesWhenNenhuma() {
+        authenticateAdvogado("edit.adv.esp.none.setup@laweact.com", "26153377050", "810022");
+        ResponseEntity<JsonNode> toNenhuma = api.patch(
+                "/advogados/me/modalidades",
+                Map.of("modalidades", List.of("NENHUMA_DAS_ANTERIORES"))
+        );
+        assertSuccess(toNenhuma, HttpStatus.OK);
+
+        ResponseEntity<JsonNode> patch = api.patch(
+                "/advogados/me/especialidades",
+                Map.of("especialidades", List.of())
+        );
+        assertErrorDetailContains(patch, HttpStatus.BAD_REQUEST, "especialidade");
+    }
+
+    @Test
     @DisplayName("PATCH graduação atualiza universidade, curso, ano e pós-graduações")
     void shouldUpdateGraduation() {
         authenticateAdvogado("edit.adv.grad@laweact.com", "39053344705", "810013");

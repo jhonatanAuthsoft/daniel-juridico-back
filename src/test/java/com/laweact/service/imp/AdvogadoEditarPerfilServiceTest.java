@@ -34,15 +34,22 @@ import com.laweact.dto.advogado.AtualizarDisponibilidadeAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDadosGeraisAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarDocumentacaoAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarEnderecoAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarEspecialidadesAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarFormasCobrancaAdvogadoInputDTO;
 import com.laweact.dto.advogado.AtualizarGraduacaoAdvogadoInputDTO;
+import com.laweact.dto.advogado.AtualizarModalidadesAdvogadoInputDTO;
+import com.laweact.dto.advogado.EspecialidadeInputDTO;
 import com.laweact.dto.advogado.OabInputDTO;
 import com.laweact.dto.advogado.PosGraduacaoInputDTO;
 import com.laweact.mapper.AdvogadoMapper;
 import com.laweact.model.entity.AdvogadoEntity;
+import com.laweact.model.entity.AdvogadoModalidadeEntity;
 import com.laweact.model.entity.EnderecoEntity;
+import com.laweact.model.entity.EspecialidadeEntity;
 import com.laweact.model.entity.FormaCobrancaEntity;
+import com.laweact.model.entity.ModalidadeAtuacaoEntity;
 import com.laweact.model.entity.PosGraduacaoAdvogadoEntity;
+import com.laweact.model.entity.SubespecialidadeEntity;
 import com.laweact.model.entity.UsuarioEntity;
 import com.laweact.model.enums.DisponibilidadeAdvogadoEnum;
 import com.laweact.model.enums.PerfilUsuarioEnum;
@@ -336,6 +343,83 @@ class AdvogadoEditarPerfilServiceTest {
     }
 
     @Test
+    @DisplayName("substitui modalidades de atuação")
+    void shouldReplaceModalidades() {
+        stubAuthenticatedAdvogado();
+        stubDetalhe();
+        ModalidadeAtuacaoEntity consultor = modalidade("CONSULTOR", "Consultor");
+        when(modalidadeAtuacaoRepository.findByCodigo("CONSULTOR")).thenReturn(Optional.of(consultor));
+
+        service.atualizarModalidades(AtualizarModalidadesAdvogadoInputDTO.builder()
+                .modalidades(List.of("CONSULTOR"))
+                .build());
+
+        verify(advogadoModalidadeRepository).deleteAll(List.of());
+        verify(advogadoModalidadeRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("rejeita modalidades vazias")
+    void shouldRejectEmptyModalidades() {
+        stubAuthenticatedAdvogado();
+
+        assertThatThrownBy(() -> service.atualizarModalidades(AtualizarModalidadesAdvogadoInputDTO.builder()
+                .modalidades(List.of())
+                .build()))
+                .isInstanceOf(CustomError.class)
+                .satisfies(ex -> {
+                    CustomError error = (CustomError) ex;
+                    assertThat(error.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(error.getMessage()).containsIgnoringCase("modalidade");
+                });
+    }
+
+    @Test
+    @DisplayName("substitui especialidades")
+    void shouldReplaceEspecialidades() {
+        stubAuthenticatedAdvogado();
+        stubDetalhe();
+        EspecialidadeEntity civil = especialidade("CIVIL", "Direito Civil");
+        SubespecialidadeEntity contratos = subespecialidade(civil, "CONTRATOS", "Contratos");
+        when(especialidadeRepository.findByCodigo("CIVIL")).thenReturn(Optional.of(civil));
+        when(subespecialidadeRepository.findByEspecialidadeIdAndCodigo(civil.getId(), "CONTRATOS"))
+                .thenReturn(Optional.of(contratos));
+
+        service.atualizarEspecialidades(AtualizarEspecialidadesAdvogadoInputDTO.builder()
+                .especialidades(List.of(EspecialidadeInputDTO.builder()
+                        .especialidadeCodigo("CIVIL")
+                        .subespecialidadeCodigo("CONTRATOS")
+                        .build()))
+                .build());
+
+        verify(advogadoEspecialidadeRepository).deleteAll(List.of());
+        verify(advogadoEspecialidadeRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("rejeita especialidades vazias quando a modalidade é Nenhuma das anteriores")
+    void shouldRejectEmptyEspecialidadesWhenNenhuma() {
+        stubAuthenticatedAdvogado();
+        ModalidadeAtuacaoEntity nenhuma = modalidade("NENHUMA_DAS_ANTERIORES", "Nenhuma das anteriores");
+        when(advogadoModalidadeRepository.findByAdvogadoUsuarioId(usuarioId)).thenReturn(List.of(
+                AdvogadoModalidadeEntity.builder()
+                        .advogado(advogado)
+                        .modalidade(nenhuma)
+                        .build()
+        ));
+
+        assertThatThrownBy(() -> service.atualizarEspecialidades(AtualizarEspecialidadesAdvogadoInputDTO.builder()
+                .especialidades(List.of())
+                .build()))
+                .isInstanceOf(CustomError.class)
+                .satisfies(ex -> {
+                    CustomError error = (CustomError) ex;
+                    assertThat(error.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(error.getMessage()).containsIgnoringCase("especialidade");
+                });
+    }
+
+    @Test
     @DisplayName("atualiza pronome e biografia")
     void shouldUpdateBiography() {
         stubAuthenticatedAdvogado();
@@ -488,6 +572,38 @@ class AdvogadoEditarPerfilServiceTest {
     private void stubAuthenticatedAdvogado() {
         when(usuarioRepository.findByEmail("joao@laweact.com")).thenReturn(Optional.of(usuario));
         when(advogadoRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(advogado));
+    }
+
+    private static ModalidadeAtuacaoEntity modalidade(String codigo, String nome) {
+        ModalidadeAtuacaoEntity entity = ModalidadeAtuacaoEntity.builder()
+                .codigo(codigo)
+                .nome(nome)
+                .build();
+        entity.setId(UUID.randomUUID());
+        return entity;
+    }
+
+    private static EspecialidadeEntity especialidade(String codigo, String nome) {
+        EspecialidadeEntity entity = EspecialidadeEntity.builder()
+                .codigo(codigo)
+                .nome(nome)
+                .build();
+        entity.setId(UUID.randomUUID());
+        return entity;
+    }
+
+    private static SubespecialidadeEntity subespecialidade(
+            EspecialidadeEntity especialidade,
+            String codigo,
+            String nome
+    ) {
+        SubespecialidadeEntity entity = SubespecialidadeEntity.builder()
+                .especialidade(especialidade)
+                .codigo(codigo)
+                .nome(nome)
+                .build();
+        entity.setId(UUID.randomUUID());
+        return entity;
     }
 
     private void stubDetalhe() {

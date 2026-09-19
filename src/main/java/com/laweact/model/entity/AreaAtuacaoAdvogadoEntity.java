@@ -28,6 +28,10 @@ public class AreaAtuacaoAdvogadoEntity extends BaseEntity {
     @Column(name = "estado", nullable = false, length = 2)
     private String estado;
 
-    @Column(name = "cidade", nullable = false, length = 120)
+    @Column(name = "cidade", length = 120)
     private String cidade;
+
+    @Builder.Default
+    @Column(name = "todo_estado", nullable = false)
+    private Boolean todoEstado = false;
 }

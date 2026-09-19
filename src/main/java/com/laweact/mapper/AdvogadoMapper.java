@@ -83,6 +83,7 @@ public class AdvogadoMapper {
                 .id(area.getId())
                 .estado(area.getEstado())
                 .cidade(area.getCidade())
+                .todoEstado(Boolean.TRUE.equals(area.getTodoEstado()))
                 .build();
     }
 

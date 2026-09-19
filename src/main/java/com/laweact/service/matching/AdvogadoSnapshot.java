@@ -23,5 +23,9 @@ public record AdvogadoSnapshot(
         BigDecimal mediaAvaliacoes
 ) {
 
-    public record Area(String uf, String cidade) {}
+    public record Area(String uf, String cidade, boolean todoEstado) {
+        public Area(String uf, String cidade) {
+            this(uf, cidade, false);
+        }
+    }
 }

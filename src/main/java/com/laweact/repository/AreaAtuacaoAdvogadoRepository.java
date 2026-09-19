@@ -14,9 +14,9 @@ public interface AreaAtuacaoAdvogadoRepository extends JpaRepository<AreaAtuacao
 
     List<AreaAtuacaoAdvogadoEntity> findByAdvogadoUsuarioId(UUID advogadoId);
 
-    /** Linhas [advogadoId, estado, cidade] carregadas em lote para o matching. */
+    /** Linhas [advogadoId, estado, cidade, todoEstado] carregadas em lote para o matching. */
     @Query("""
-            select a.advogado.usuarioId, a.estado, a.cidade
+            select a.advogado.usuarioId, a.estado, a.cidade, a.todoEstado
             from AreaAtuacaoAdvogadoEntity a
             where a.advogado.usuarioId in :advogadoIds
             """)

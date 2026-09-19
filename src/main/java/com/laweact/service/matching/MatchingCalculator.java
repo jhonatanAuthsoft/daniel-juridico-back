@@ -131,7 +131,7 @@ public final class MatchingCalculator {
                 continue;
             }
             mesmoEstado = true;
-            if (cidadeDemanda.equals(normalizar(area.cidade()))) {
+            if (area.todoEstado() || cidadeDemanda.equals(normalizar(area.cidade()))) {
                 return NivelLocalidadeEnum.MESMA_CIDADE;
             }
         }

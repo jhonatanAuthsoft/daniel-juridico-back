@@ -10,5 +10,6 @@ import lombok.Builder;
 public record AreaAtuacaoResponseDTO(
         @NotNull UUID id,
         @NotBlank String estado,
-        @NotBlank String cidade
+        String cidade,
+        boolean todoEstado
 ) {}

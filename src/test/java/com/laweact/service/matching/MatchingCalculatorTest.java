@@ -79,6 +79,34 @@ class MatchingCalculatorTest {
     }
 
     @Test
+    @DisplayName("todo o estado pontua como mesma cidade em qualquer município da UF")
+    void shouldScoreCityWhenLawyerCoversEntireState() {
+        AdvogadoSnapshot advogado = advogadoPerfeito()
+                .areas(List.of(new AdvogadoSnapshot.Area("SP", null, true)))
+                .build();
+
+        MatchingResultado resultado = MatchingCalculator.avaliar(criteriosCompletos(), advogado, HOJE);
+
+        assertThat(resultado.elegivel()).isTrue();
+        assertThat(resultado.score()).isEqualTo(100);
+        assertThat(resultado.nivelLocalidade()).isEqualTo(NivelLocalidadeEnum.MESMA_CIDADE);
+        assertThat(resultado.pontosLocalidade()).isEqualTo(20);
+    }
+
+    @Test
+    @DisplayName("todo o estado em outra UF continua fora do ranking")
+    void shouldRejectEntireStateInAnotherUf() {
+        AdvogadoSnapshot advogado = advogadoPerfeito()
+                .areas(List.of(new AdvogadoSnapshot.Area("RJ", null, true)))
+                .build();
+
+        MatchingResultado resultado = MatchingCalculator.avaliar(criteriosCompletos(), advogado, HOJE);
+
+        assertThat(resultado.elegivel()).isFalse();
+        assertThat(resultado.nivelLocalidade()).isEqualTo(NivelLocalidadeEnum.FORA_ESTADO);
+    }
+
+    @Test
     @DisplayName("fora do estado não entra no ranking")
     void shouldRejectOutOfState() {
         AdvogadoSnapshot advogado = advogadoPerfeito()

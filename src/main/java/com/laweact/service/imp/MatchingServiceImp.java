@@ -157,7 +157,11 @@ public class MatchingServiceImp implements MatchingService {
         for (Object[] linha : areaAtuacaoAdvogadoRepository.findAreasByAdvogadoIds(ids)) {
             UUID advogadoId = (UUID) linha[0];
             areas.computeIfAbsent(advogadoId, k -> new ArrayList<>())
-                    .add(new AdvogadoSnapshot.Area((String) linha[1], (String) linha[2]));
+                    .add(new AdvogadoSnapshot.Area(
+                            (String) linha[1],
+                            (String) linha[2],
+                            Boolean.TRUE.equals(linha[3])
+                    ));
         }
 
         List<AdvogadoSnapshot> snapshots = new ArrayList<>();

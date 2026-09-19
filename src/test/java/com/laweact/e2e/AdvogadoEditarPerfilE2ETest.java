@@ -219,6 +219,25 @@ class AdvogadoEditarPerfilE2ETest extends BaseE2ETest {
     }
 
     @Test
+    @DisplayName("PATCH áreas de atuação aceita todo o estado sem cidade")
+    void shouldUpdateEntireStateServiceArea() {
+        authenticateAdvogado("edit.adv.areas.estado@laweact.com", "28001238938", "810043");
+
+        ResponseEntity<JsonNode> patch = api.patch(
+                "/advogados/me/areas-atuacao",
+                Map.of("areasAtuacao", List.of(
+                        Map.of("estado", "SP", "todoEstado", true)
+                ))
+        );
+        assertSuccess(patch, HttpStatus.OK);
+        JsonNode areas = patch.getBody().path("data").path("areasAtuacao");
+        assertThat(areas).hasSize(1);
+        assertThat(areas.get(0).path("estado").asText()).isEqualTo("SP");
+        assertThat(areas.get(0).path("todoEstado").asBoolean()).isTrue();
+        assertThat(areas.get(0).path("cidade").asText("")).isEmpty();
+    }
+
+    @Test
     @DisplayName("PATCH áreas de atuação rejeita lista vazia")
     void shouldRejectEmptyServiceAreas() {
         authenticateAdvogado("edit.adv.areas.empty@laweact.com", "26153377050", "810016");

@@ -5,6 +5,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -841,20 +843,40 @@ public class AdvogadoServiceImp implements AdvogadoService {
     }
 
     private List<AreaAtuacaoAdvogadoEntity> salvarAreas(AdvogadoEntity advogado, List<AreaAtuacaoInputDTO> areas) {
-        List<AreaAtuacaoAdvogadoEntity> areasSalvas = new ArrayList<>();
-        Set<String> areasUnicas = new HashSet<>();
+        Set<String> ufsTodoEstado = new LinkedHashSet<>();
+        for (AreaAtuacaoInputDTO area : areas) {
+            if (area.cobreTodoEstado()) {
+                ufsTodoEstado.add(area.estado().trim().toUpperCase());
+            }
+        }
+
+        LinkedHashMap<String, AreaAtuacaoAdvogadoEntity> unicas = new LinkedHashMap<>();
         for (AreaAtuacaoInputDTO area : areas) {
             String estado = area.estado().trim().toUpperCase();
-            String cidade = area.cidade().trim();
-            String chave = estado + "|" + cidade.toLowerCase();
-            if (!areasUnicas.add(chave)) {
+            if (ufsTodoEstado.contains(estado)) {
+                unicas.put(estado + "|*", AreaAtuacaoAdvogadoEntity.builder()
+                        .advogado(advogado)
+                        .estado(estado)
+                        .cidade(null)
+                        .todoEstado(true)
+                        .build());
                 continue;
             }
-            AreaAtuacaoAdvogadoEntity areaEntity = AreaAtuacaoAdvogadoEntity.builder()
+            String cidade = area.cidade() == null ? "" : area.cidade().trim();
+            if (cidade.isBlank()) {
+                throw new CustomError("A cidade da área de atuação é obrigatória", HttpStatus.BAD_REQUEST);
+            }
+            String chave = estado + "|" + cidade.toLowerCase();
+            unicas.putIfAbsent(chave, AreaAtuacaoAdvogadoEntity.builder()
                     .advogado(advogado)
                     .estado(estado)
                     .cidade(cidade)
-                    .build();
+                    .todoEstado(false)
+                    .build());
+        }
+
+        List<AreaAtuacaoAdvogadoEntity> areasSalvas = new ArrayList<>();
+        for (AreaAtuacaoAdvogadoEntity areaEntity : unicas.values()) {
             areasSalvas.add(areaAtuacaoAdvogadoRepository.save(areaEntity));
         }
         return areasSalvas;

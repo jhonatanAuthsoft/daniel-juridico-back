@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
@@ -44,6 +46,7 @@ import com.laweact.dto.advogado.PosGraduacaoInputDTO;
 import com.laweact.mapper.AdvogadoMapper;
 import com.laweact.model.entity.AdvogadoEntity;
 import com.laweact.model.entity.AdvogadoModalidadeEntity;
+import com.laweact.model.entity.AreaAtuacaoAdvogadoEntity;
 import com.laweact.model.entity.EnderecoEntity;
 import com.laweact.model.entity.EspecialidadeEntity;
 import com.laweact.model.entity.FormaCobrancaEntity;
@@ -323,7 +326,54 @@ class AdvogadoEditarPerfilServiceTest {
                 .build());
 
         verify(areaAtuacaoAdvogadoRepository).deleteAll(List.of());
-        verify(areaAtuacaoAdvogadoRepository, org.mockito.Mockito.times(2)).save(any());
+        verify(areaAtuacaoAdvogadoRepository, times(2)).save(any());
+    }
+
+    @Test
+    @DisplayName("persiste todo o estado sem cidade")
+    void shouldPersistEntireStateWithoutCity() {
+        stubAuthenticatedAdvogado();
+        stubDetalhe();
+
+        service.atualizarAreasAtuacao(AtualizarAreasAtuacaoAdvogadoInputDTO.builder()
+                .areasAtuacao(List.of(
+                        AreaAtuacaoInputDTO.builder().estado("sp").todoEstado(true).build()
+                ))
+                .build());
+
+        ArgumentCaptor<AreaAtuacaoAdvogadoEntity> captor =
+                ArgumentCaptor.forClass(AreaAtuacaoAdvogadoEntity.class);
+        verify(areaAtuacaoAdvogadoRepository).save(captor.capture());
+        AreaAtuacaoAdvogadoEntity salva = captor.getValue();
+        assertThat(salva.getEstado()).isEqualTo("SP");
+        assertThat(salva.getCidade()).isNull();
+        assertThat(salva.getTodoEstado()).isTrue();
+    }
+
+    @Test
+    @DisplayName("todo o estado na mesma UF substitui as cidades enviadas")
+    void shouldKeepOnlyEntireStateWhenCitiesAreAlsoSent() {
+        stubAuthenticatedAdvogado();
+        stubDetalhe();
+
+        service.atualizarAreasAtuacao(AtualizarAreasAtuacaoAdvogadoInputDTO.builder()
+                .areasAtuacao(List.of(
+                        AreaAtuacaoInputDTO.builder().estado("SP").cidade("Campinas").build(),
+                        AreaAtuacaoInputDTO.builder().estado("SP").todoEstado(true).build(),
+                        AreaAtuacaoInputDTO.builder().estado("BA").cidade("Salvador").build()
+                ))
+                .build());
+
+        ArgumentCaptor<AreaAtuacaoAdvogadoEntity> captor =
+                ArgumentCaptor.forClass(AreaAtuacaoAdvogadoEntity.class);
+        verify(areaAtuacaoAdvogadoRepository, times(2)).save(captor.capture());
+        assertThat(captor.getAllValues())
+                .extracting(AreaAtuacaoAdvogadoEntity::getEstado)
+                .containsExactly("SP", "BA");
+        assertThat(captor.getAllValues().get(0).getTodoEstado()).isTrue();
+        assertThat(captor.getAllValues().get(0).getCidade()).isNull();
+        assertThat(captor.getAllValues().get(1).getCidade()).isEqualTo("Salvador");
+        assertThat(captor.getAllValues().get(1).getTodoEstado()).isFalse();
     }
 
     @Test
